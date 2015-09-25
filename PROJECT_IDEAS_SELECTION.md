@@ -23,6 +23,17 @@ You can find many different ML problems here:
 * [Kaggle](https://www.kaggle.com/)
 * [UCI Machine Learning Repository](https://archive.ics.uci.edu/ml/datasets.html)
 
+* https://www.kaggle.com/c/predict-closed-questions-on-stack-overflow
+* https://www.kaggle.com/c/galaxy-zoo-the-galaxy-challenge
+* https://www.kaggle.com/c/higgs-boson
+* https://www.kaggle.com/c/denoising-dirty-documents
+* https://www.kaggle.com/c/emc-data-science
+* https://www.kaggle.com/c/crowdflower-search-relevance
+* https://www.kaggle.com/c/sf-crime
+* https://www.kaggle.com/c/job-recommendation
+* https://www.kaggle.com/c/avito-prohibited-content
+* https://www.kaggle.com/c/avito-context-ad-clicks
+
 Some useful libraries containing different ML methods:
 
 * [scikit-learn](http://scikit-learn.org/stable/)
