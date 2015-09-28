@@ -1,11 +1,14 @@
 import time
 import csv
 
-def read(path):
+def read(path, limit=None):
 	with open(path) as file:
 		descriptions = file.readline().split(',')
 		csv_reader = csv.reader(file)
-		for data_point in csv_reader:
+		for index, data_point in enumerate(csv_reader):
+			if limit is not None and index >= limit:
+				break
+			
 			date = time.strptime(data_point[0], '%Y-%m-%d %H:%M:%S')
 			category = data_point[1]
 			descript = data_point[2]
