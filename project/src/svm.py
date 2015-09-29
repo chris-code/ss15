@@ -4,13 +4,14 @@ from sklearn.svm import SVC
 import sklearn.cross_validation as cv
 
 path = "../data/train.csv"
-data = im.to_numpy_array(im.vectorize(im.read(path, 30000)))
+data = im.to_numpy_array(im.preprocess(im.vectorize(im.read(path, 30000))))
 X = data[:,2:4]
 Y = data[:,1]
 
 train_X, test_X, train_Y, test_Y = cv.train_test_split(X, Y, test_size=0.33)
 
-for c in [10**p for p in range(-3,4)]:
+
+for c in [10**p for p in range(0,3)]:
 	print c
 	clf = SVC(C=c)
 	clf.fit(train_X, train_Y)

@@ -37,9 +37,24 @@ def vectorize(data):
 		
 		yield (time, crime_type_id, data_point[7], data_point[8])
 
+def preprocess(data):
+	# define outermost coordinates
+	SOUTH = {'y': 37.696850, 'x': -122.440464}
+	EAST = {'y': 37.764893, 'x': -122.347306} 
+	NORTH = {'y': 37.839763, 'x': -122.424554}
+	WEST = {'y': 37.728356, 'x': -122.535908}
+	
+	for data_point in data:
+		if data_point[2] < WEST['x'] \
+		or data_point[2] > EAST['x'] \
+		or data_point[3] < SOUTH['y'] \
+		or data_point[3] > NORTH['y']:
+			continue
+		yield data_point
+			
 def to_numpy_array(data):
 	collected_data = [data_point for data_point in data]
 	return np.asarray(collected_data)
 
-# data = to_numpy_array(vectorize(read('data/train.csv')))
+# data = to_numpy_array(preprocess(vectorize(read('data/train.csv'))))
 # print(data.shape)
