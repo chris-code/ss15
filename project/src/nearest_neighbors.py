@@ -6,8 +6,9 @@ import sklearn.cross_validation as cv
 import importer
 
 path = 'data/train.csv'
-data = importer.to_numpy_array(importer.vectorize(importer.read(path, 10000), features=['crime_type_id', 'time', 'latitude', 'longitude', 'day_of_week'] ))
-# data = importer.to_numpy_array(importer.vectorize(importer.read(path), features=['crime_type_id', 'time', 'latitude', 'longitude', 'day_of_week'] ))
+data = importer.to_numpy_array(importer.vectorize(importer.read(path, 10000), features=['time', 'latitude', 'longitude', 'day_of_week'] ))
+# data = importer.to_numpy_array(importer.vectorize(importer.read(path), features=['time', 'latitude', 'longitude', 'day_of_week'] ))
+data = importer.ensure_unit_variance(data)
 crime_ids = data[:,0]
 locations = data[:,1:]
 
