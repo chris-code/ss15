@@ -1,6 +1,8 @@
 import time
 import csv
 import numpy as np
+import sklearn as skl
+import sklearn.preprocessing
 
 def read(path, limit=None):
 	with open(path) as file:
@@ -21,12 +23,10 @@ def read(path, limit=None):
 			Y = float(data_point[8])
 			yield (date, category, descript, day_of_week, pd_district, resolution, adress, X, Y)
 
-def vectorize(data, features=[]):
+def vectorize(data, features=['time', 'day', 'month', 'year', 'day_of_week', 'latitude', 'longitude']):
 	crime_type_ids = {}
 	crime_type_counter = 0
-	
-	#day_of_week_ids = {'Monday': 0, 'Tuesday': 1, 'Wednesday': 2, 'Thursday': 3, 'Friday': 4, 'Saturday': 5, 'Sunday': 6}
-	
+
 	for data_point in data:
 		try:
 			crime_type_id = crime_type_ids[data_point[1]]
@@ -35,7 +35,7 @@ def vectorize(data, features=[]):
 			crime_type_counter += 1
 			crime_type_id = crime_type_ids[data_point[1]]
 		
-		vec = []
+		vec = [crime_type_id]
 		for feature in features:
 			if feature == 'time':
 				time = data_point[0].tm_hour * 60 + data_point[0].tm_min
@@ -51,8 +51,6 @@ def vectorize(data, features=[]):
 				vec.append(year)
 			elif feature == 'day_of_week':
 				vec.append(data_point[0].tm_wday)
-			elif feature == 'crime_type_id':
-				vec.append(crime_type_id)
 			elif feature == 'latitude':
 				vec.append(data_point[7])
 			elif feature == 'longitude':
@@ -75,11 +73,18 @@ def preprocess(data):
 		or data_point[3] > NORTH['y']:
 			continue
 		yield data_point
-			
+	
 def to_numpy_array(data):
 	collected_data = [data_point for data_point in data]
 	return np.asarray(collected_data)
 
+def ensure_unit_variance(data):
+	data_scaled = skl.preprocessing.scale(data[:,1:])
+	return np.hstack( [data[:,0].reshape(-1,1), data_scaled] )
+
+
+# data = ensure_unit_variance(to_numpy_array(vectorize(read('data/train.csv', 30000))))
+	
 # crime_counter = {}
 # for data_point in read('data/train.csv', 10000):
 	# try:
