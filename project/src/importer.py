@@ -32,11 +32,14 @@ def vectorize(data):
 			crime_type_ids[data_point[1]] = crime_type_counter
 			crime_type_counter += 1
 			crime_type_id = crime_type_ids[data_point[1]]
-			
-		yield (crime_type_id, data_point[7], data_point[8])
+		
+		time = data_point[0].tm_hour * 60**2 + data_point[0].tm_min * 60 + data_point[0].tm_sec
+		
+		yield (time, crime_type_id, data_point[7], data_point[8])
 
 def to_numpy_array(data):
 	collected_data = [data_point for data_point in data]
 	return np.asarray(collected_data)
-	
-#to_numpy_array(vectorize(read('data/train.csv')))
+
+# data = to_numpy_array(vectorize(read('data/train.csv')))
+# print(data.shape)
