@@ -18,7 +18,8 @@ def distance_function(a, b):
 	dist = (a[1] - b[1])**2 + (a[2] - b[2])**2
 	max_t = max(a[0], b[0])
 	min_t = min(a[0], b[0])
-	dist += min( (0.001 * (max_t - min_t))**2, ( (0.001 * (min_t + 24 * 60**2 - max_t) ))**2 )
+	# dist += min( (0.001 * (max_t - min_t))**2, ( (0.001 * (min_t + 24 * 60**2 - max_t) ))**2 )
+	dist += min( (max_t - min_t)**2, ( (min_t + 24 * 60**2 - max_t) )**2 )
 	return math.sqrt(dist)
 
 neighbor_counts = [3, 43, 83, 123, 163, 203, 243, 283]
