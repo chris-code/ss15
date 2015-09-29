@@ -6,25 +6,9 @@ import sklearn.cross_validation as cv
 import importer
 
 path = 'data/train.csv'
-
-locations = []
-crime_ids = []
-crime_id_map = {}
-id_counter = 0
-#for data_point in importer.read(path, 10000):
-for data_point in importer.read(path):
-	try:
-		crime_id = crime_id_map[data_point[1]]
-	except KeyError:
-		crime_id_map[data_point[1]] = id_counter
-		crime_id = crime_id_map[data_point[1]]
-		id_counter += 1
-	
-	crime_ids.append(crime_id)
-	time = data_point[0].tm_hour * 60**2 + data_point[0].tm_min * 60 + data_point[0].tm_sec
-	locations.append( (time, data_point[7], data_point[8]) )
-locations = np.asarray(locations)
-crime_ids = np.asarray(crime_ids)
+data = importer.to_numpy_array(importer.vectorize(importer.read(path, 10000)))
+locations = np.hstack( [data[:,0].reshape((-1,1)), data[:,2:4]] )
+crime_ids = data[:,1]
 
 loc_train, loc_test, crime_ids_train, crime_ids_test = cv.train_test_split(locations, crime_ids, test_size=0.33)
 
