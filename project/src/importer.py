@@ -21,9 +21,11 @@ def read(path, limit=None):
 			Y = float(data_point[8])
 			yield (date, category, descript, day_of_week, pd_district, resolution, adress, X, Y)
 
-def vectorize(data):
+def vectorize(data, features=[]):
 	crime_type_ids = {}
 	crime_type_counter = 0
+	
+	#day_of_week_ids = {'Monday': 0, 'Tuesday': 1, 'Wednesday': 2, 'Thursday': 3, 'Friday': 4, 'Saturday': 5, 'Sunday': 6}
 	
 	for data_point in data:
 		try:
@@ -33,13 +35,42 @@ def vectorize(data):
 			crime_type_counter += 1
 			crime_type_id = crime_type_ids[data_point[1]]
 		
-		time = data_point[0].tm_hour * 60**2 + data_point[0].tm_min * 60 + data_point[0].tm_sec
-		
-		yield (time, crime_type_id, data_point[7], data_point[8])
+		vec = []
+		for feature in features:
+			if feature == 'time':
+				time = data_point[0].tm_hour * 60 + data_point[0].tm_min
+				vec.append(time)
+			elif feature == 'day':
+				day = data_point[0].tm_mday
+				vec.append(day)
+			elif feature == 'month':
+				month = data_point[0].tm_mon
+				vec.append(month)
+			elif feature == 'year':
+				year = data_point[0].tm_year
+				vec.append(year)
+			elif feature == 'day_of_week':
+				vec.append(data_point[0].tm_wday)
+			elif feature == 'crime_type_id':
+				vec.append(crime_type_id)
+			elif feature == 'latitude':
+				vec.append(data_point[7])
+			elif feature == 'longitude':
+				vec.append(data_point[8])
+			else:
+				raise 'Feature not supported!'
+		yield vec
 
 def to_numpy_array(data):
 	collected_data = [data_point for data_point in data]
 	return np.asarray(collected_data)
 
-# data = to_numpy_array(vectorize(read('data/train.csv')))
-# print(data.shape)
+# crime_counter = {}
+# for data_point in read('data/train.csv', 10000):
+	# try:
+		# crime_counter[data_point[1]] += 1
+	# except KeyError:
+		# crime_counter[data_point[1]] = 1
+
+# for key, value in crime_counter.items():
+	# print('{0}: {1}'.format(key, value))
