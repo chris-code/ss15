@@ -5,7 +5,7 @@ import sklearn as skl
 import sklearn.preprocessing
 
 def read(path, limit=None):
-	with open(path) as file:
+	with open(path, 'rb') as file:
 		descriptions = file.readline().split(',')
 		csv_reader = csv.reader(file)
 		for index, data_point in enumerate(csv_reader):
@@ -26,6 +26,7 @@ def read(path, limit=None):
 def vectorize(data, features=['time', 'day', 'month', 'year', 'day_of_week', 'latitude', 'longitude']):
 	crime_type_ids = {}
 	crime_type_counter = 0
+	yield crime_type_ids
 
 	for data_point in data:
 		try:
@@ -82,9 +83,34 @@ def ensure_unit_variance(data):
 	data_scaled = skl.preprocessing.scale(data[:,1:])
 	return np.hstack( [data[:,0].reshape(-1,1), data_scaled] )
 
+def write(path, predictions, crime_to_id):
+	# id_to_crime_dict = {value: key for key, value in crime_to_id_dict}
+	first_line = [crime for crime in sorted(crime_to_id, key=crime_to_id.get)]
+	first_line.insert(0, 'Id')
 
-# data = ensure_unit_variance(to_numpy_array(vectorize(read('data/train.csv', 30000))))
+	with open(path, 'wb') as file:
+		csv_writer = csv.writer(file, delimiter=',')
+		
+		csv_writer.writerow(first_line)
+		for row in predictions:
+			csv_writer.writerow(row)
 	
+# Show lower and upper limit of raw vs. normalized time of day
+# data = to_numpy_array(vectorize(read('data/train.csv', 10000)))
+# print('Min: {0} Max: {1}'.format(min(data[:,1]), max(data[:,1])))
+# rescaled_data = ensure_unit_variance(data)
+# print('Min: {0} Max: {1}'.format(min(rescaled_data[:,1]), max(rescaled_data[:,1])))
+
+# Plot histogram of raw vs. rescaled time of day
+# import matplotlib.pyplot as plt
+# fig, (ax0, ax1) = plt.subplots(ncols=2, figsize=(8, 4))
+# ax0.hist(data[:,1], 20)
+# ax0.set_title('Raw')
+# ax1.hist(rescaled_data[:,1], 20)
+# ax1.set_title('Rescaled')
+# plt.show()
+
+# Print counts for different crimes
 # crime_counter = {}
 # for data_point in read('data/train.csv', 10000):
 	# try:

@@ -5,26 +5,84 @@ import sklearn.neighbors
 import sklearn.cross_validation as cv
 import importer
 
-path = 'data/train.csv'
-data = importer.to_numpy_array(importer.vectorize(importer.read(path, 10000), features=['time', 'latitude', 'longitude', 'day_of_week'] ))
-# data = importer.to_numpy_array(importer.vectorize(importer.read(path), features=['time', 'latitude', 'longitude', 'day_of_week'] ))
-data = importer.ensure_unit_variance(data)
-crime_ids = data[:,0]
-locations = data[:,1:]
-
-loc_train, loc_test, crime_ids_train, crime_ids_test = cv.train_test_split(locations, crime_ids, test_size=0.33)
+def distance_in_mod(a, b, m):
+	if a > b:
+		return min( a - b, m - (a - b) )
+	else:
+		return min( b - a, m - (b - a) )
 
 def distance_function(a, b):
-	dist = (a[1] - b[1])**2 + (a[2] - b[2])**2
-	max_t = max(a[0], b[0])
-	min_t = min(a[0], b[0])
-	# dist += min( (0.001 * (max_t - min_t))**2, ( (0.001 * (min_t + 24 * 60**2 - max_t) ))**2 )
-	dist += min( (max_t - min_t)**2, ( (min_t + 24 * 60**2 - max_t) )**2 )
+	dist = (a[0] - b[0])**2 + (a[1] - b[1])**2
+	dist += distance_in_mod(a[2], b[2], modulo_for_day)
+	dist += distance_in_mod(a[3], b[3], modulo_for_day_of_week)
+	dist += distance_in_mod(a[4], b[4], modulo_for_time)
 	return math.sqrt(dist)
 
-neighbor_counts = [3, 43, 83, 123, 163, 203, 243, 283]
-for neighbor_count in neighbor_counts:
-	knnc = skl.neighbors.KNeighborsClassifier(n_neighbors=neighbor_count, weights='distance', metric='pyfunc', func=distance_function)
-	knnc.fit(loc_train, crime_ids_train)
-	score = knnc.score(loc_test, crime_ids_test)
-	print('Score with {0} neighbors: {1}'.format(neighbor_count, score))
+def train(neighbor_counts = [1]):
+	best_score = 0
+	for neighbor_count in neighbor_counts:
+		knn_c = skl.neighbors.KNeighborsClassifier(n_neighbors=neighbor_count, weights='distance', metric='pyfunc', func=distance_function)
+		# knn_c = skl.neighbors.KNeighborsClassifier(n_neighbors=neighbor_count, weights='distance')
+		knn_c.fit(loc_train, crime_ids_train)
+		score = knn_c.score(loc_test, crime_ids_test)
+		print('Score with {0} neighbors: {1}'.format(neighbor_count, score))
+		
+		if score > best_score:
+			best_knn_c = knn_c
+		
+	return best_knn_c
+
+def predict(knn_c, data):
+	return knn_c.predict_proba(data)
+
+def logloss(predictions, truth):
+	ll = 0.0
+	for i in range(predictions.shape[0]):
+		true_crime_id = truth[i]
+		try:
+			prob = predictions[i, true_crime_id]
+		except IndexError:
+			prob = 0
+		prob = max( min(prob, 1 - 10**(-15)) , 10**(-15))
+		ll += math.log(prob)
+	return (-1.0) * ll / predictions.shape[0]
+
+# Load data
+train_path = 'data/train.csv'
+predictions_path = 'data/predictions.csv'
+data = importer.read(train_path, 10000)
+data = importer.vectorize(data, features=['latitude', 'longitude', 'day', 'day_of_week', 'time'])
+crime_to_id_dict = data.next()
+data = importer.to_numpy_array(data)
+data = importer.ensure_unit_variance(data)
+
+crime_ids = data[:,0].astype(int)
+locations = data[:,1:]
+modulo_for_day = abs(min(locations[:,2]) - max(locations[:,2]))
+modulo_for_day_of_week = abs(min(locations[:,3]) - max(locations[:,3]))
+modulo_for_time = abs(min(locations[:,4]) - max(locations[:,4]))
+
+# Split into train and test set
+loc_train, loc_test, crime_ids_train, crime_ids_test = cv.train_test_split(locations, crime_ids, test_size=0.33)
+
+
+# Train and evaluate
+neighbor_counts = [43, 83, 123, 163, 203, 243, 283]
+# neighbor_counts = [43]
+knn_c = train(neighbor_counts)
+predictions = predict(knn_c, loc_test)
+ll = logloss(predictions, crime_ids_test)
+print('Log loss: {0}'.format(ll))
+importer.write(predictions_path, predictions, crime_to_id_dict)
+
+
+
+
+
+
+
+
+
+
+
+
