@@ -11,11 +11,27 @@ def distance_in_mod(a, b, m):
 	else:
 		return min( b - a, m - (b - a) )
 
+# Expects a and b to be of the format
+# (latitude, longitude, day_of_month, day_of_week, time_of_day)
 def distance_function(a, b):
 	dist = (a[0] - b[0])**2 + (a[1] - b[1])**2
 	dist += distance_in_mod(a[2], b[2], modulo_for_day)
 	dist += distance_in_mod(a[3], b[3], modulo_for_day_of_week)
 	dist += distance_in_mod(a[4], b[4], modulo_for_time)
+	
+	if a[7] > 0 and b[7] > 0:
+		divisor = 0
+		if abs(a[5] - b[5]) < 0.1: divisor += 0.1
+		if abs(a[5] - b[6]) < 0.1: divisor += 0.1
+		if abs(a[6] - b[5]) < 0.1: divisor += 0.1
+		if abs(a[6] - b[6]) < 0.1: divisor += 0.1
+		dist /= divisor
+	elif a[7] > 0 and b[7] < 0:
+		pass
+	elif a[7] < 0 and b[7] > 0:
+		pass
+	else:
+		pass
 	return math.sqrt(dist)
 
 def train(neighbor_counts = [1]):
