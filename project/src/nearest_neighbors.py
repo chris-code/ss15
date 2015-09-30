@@ -54,7 +54,7 @@ data = importer.read(train_path, 10000)
 data = importer.vectorize(data, features=['latitude', 'longitude', 'day', 'day_of_week', 'time'])
 crime_to_id_dict = data.next()
 data = importer.to_numpy_array(data)
-data = importer.ensure_unit_variance(data)
+data = importer.ensure_unit_variance(data, columns_to_normalize=(1, 2, 3, 4, 5))
 
 crime_ids = data[:,0].astype(int)
 locations = data[:,1:]
