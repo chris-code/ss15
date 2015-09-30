@@ -56,11 +56,15 @@ class Network:
 			if prediction != target[index]:
 				mistakes += 1
 		return float(mistakes) / data.shape[0]
-		
+
 path = "../data/train.csv"
-data = im.to_numpy_array(im.preprocess(im.vectorize(im.read(path, 30000))))
-X = data[:,2:4]
-Y = data[:,1]
+data = im.vectorize(im.read(path, 30000), ['latitude', 'longitude', 'time', 'day', 'month', 'year', 'day_of_week'])
+crime_to_id_dict = data.next()
+data = im.to_numpy_array(im.preprocess(data, 1, 2))
+data = im.ensure_unit_variance(data)
+
+Y = data[:,0].astype(int)
+X = data[:,1:]
 
 data_train, data_test, target_train, target_test = cv.train_test_split(X, Y, test_size=0.33)
 
