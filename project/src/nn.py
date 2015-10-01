@@ -1,6 +1,8 @@
 import math
 import numpy as np
 import importer as im
+import evaluation as ev
+import data_processing as dp
 import sklearn as sl
 import sklearn.cross_validation as cv
 
@@ -79,10 +81,10 @@ class Network:
 
 # load data
 path = "../data/train.csv"
-data = im.vectorize(im.read(path, 30000), ['latitude', 'longitude', 'time', 'day', 'month', 'year', 'day_of_week'])
+data = dp.vectorize(im.read(path, 30000), ['latitude', 'longitude', 'time', 'day', 'month', 'year', 'day_of_week'])
 crime_to_id_dict = data.next()
-data = im.to_numpy_array(im.preprocess(data, 1, 2))
-data = im.ensure_unit_variance(data, range(1,8))
+data = im.to_numpy_array(dp.remove_outliers(data, 1, 2))
+data = dp.ensure_unit_variance(data, range(1,8))
 
 # separate data in features and labels
 Y = data[:,0].astype(int)
