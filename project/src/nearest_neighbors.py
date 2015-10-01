@@ -14,24 +14,27 @@ def distance_in_mod(a, b, m):
 # Expects a and b to be of the format
 # (latitude, longitude, day_of_month, day_of_week, time_of_day)
 def distance_function(a, b):
-	dist = (a[0] - b[0])**2 + (a[1] - b[1])**2
+	dist = abs(a[0] - b[0]) + abs(a[1] - b[1])
 	dist += distance_in_mod(a[2], b[2], modulo_for_day)
 	dist += distance_in_mod(a[3], b[3], modulo_for_day_of_week)
 	dist += distance_in_mod(a[4], b[4], modulo_for_time)
 	
-	if a[7] > 0 and b[7] > 0:
-		divisor = 0
-		if abs(a[5] - b[5]) < 0.1: divisor += 0.1
-		if abs(a[5] - b[6]) < 0.1: divisor += 0.1
-		if abs(a[6] - b[5]) < 0.1: divisor += 0.1
-		if abs(a[6] - b[6]) < 0.1: divisor += 0.1
-		dist /= divisor
-	elif a[7] > 0 and b[7] < 0:
-		pass
+	divisor = 1
+	if a[7] < 0 and b[7] < 0:
+		if abs(a[5] - b[5]) < 0.1: divisor += 1.0
+		if abs(a[5] - b[6]) < 0.1: divisor += 1.0
+		if abs(a[6] - b[5]) < 0.1: divisor += 1.0
+		if abs(a[6] - b[6]) < 0.1: divisor += 1.0
 	elif a[7] < 0 and b[7] > 0:
-		pass
+		if abs(a[5] - b[5]) < 0.1: divisor += 1.0
+		elif abs(a[6] - b[5]) < 0.1: divisor += 1.0
+	elif a[7] > 0 and b[7] < 0:
+		if abs(a[5] - b[5]) < 0.1: divisor += 1.0
+		elif abs(a[5] - b[6]) < 0.1: divisor += 1.0
 	else:
-		pass
+		if abs(a[5] - b[5]) < 0.1: divisor += 1.0
+	dist /= divisor
+	
 	return math.sqrt(dist)
 
 def train(neighbor_counts = [1]):
@@ -66,9 +69,9 @@ def logloss(predictions, truth):
 # Load data
 train_path = 'data/train.csv'
 predictions_path = 'data/predictions.csv'
-data = importer.read(train_path, 10000)
-data = importer.vectorize(data, features=['latitude', 'longitude', 'day', 'day_of_week', 'time'])
-crime_to_id_dict = data.next()
+data = importer.read(train_path, 3000)
+data = importer.vectorize(data, features=['latitude', 'longitude', 'day', 'day_of_week', 'time', 'streets'])
+crime_to_id_dict = data.__next__() # FIXME change 1
 data = importer.to_numpy_array(data)
 data = importer.ensure_unit_variance(data, columns_to_normalize=(1, 2, 3, 4, 5))
 
@@ -81,10 +84,9 @@ modulo_for_time = abs(min(locations[:,4]) - max(locations[:,4]))
 # Split into train and test set
 loc_train, loc_test, crime_ids_train, crime_ids_test = cv.train_test_split(locations, crime_ids, test_size=0.33)
 
-
 # Train and evaluate
-neighbor_counts = [43, 83, 123, 163, 203, 243, 283]
-# neighbor_counts = [43]
+# neighbor_counts = [43, 83, 123, 163, 203, 243, 283]
+neighbor_counts = [43, 83, 123]
 knn_c = train(neighbor_counts)
 predictions = predict(knn_c, loc_test)
 ll = logloss(predictions, crime_ids_test)

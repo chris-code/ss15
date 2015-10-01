@@ -6,7 +6,7 @@ import sklearn as skl
 import sklearn.preprocessing
 
 def read(path, limit=None):
-	with open(path, 'rb') as file:
+	with open(path, 'r') as file: # FIXME change 2
 		descriptions = file.readline().split(',')
 		csv_reader = csv.reader(file)
 		for index, data_point in enumerate(csv_reader):
@@ -128,7 +128,7 @@ def write(path, predictions, crime_to_id):
 	first_line = [crime for crime in sorted(crime_to_id, key=crime_to_id.get)]
 	first_line.insert(0, 'Id')
 
-	with open(path, 'wb') as file:
+	with open(path, 'w') as file: # FIXME change 3
 		csv_writer = csv.writer(file, delimiter=',')
 		
 		csv_writer.writerow(first_line)
