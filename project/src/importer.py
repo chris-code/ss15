@@ -1,11 +1,12 @@
 import time
+import re
 import csv
 import numpy as np
 import sklearn as skl
 import sklearn.preprocessing
 
 def read(path, limit=None):
-	with open(path, 'rb') as file:
+	with open(path, 'r') as file: # FIXME change 2
 		descriptions = file.readline().split(',')
 		csv_reader = csv.reader(file)
 		for index, data_point in enumerate(csv_reader):
@@ -26,8 +27,12 @@ def read(path, limit=None):
 def vectorize(data, features=['time', 'day', 'month', 'year', 'day_of_week', 'latitude', 'longitude']):
 	crime_type_ids = {}
 	crime_type_counter = 0
+	street_ids = {}
+	street_counter = 0
 	yield crime_type_ids
 
+	street_type_1 = re.compile(r'(.+) / (.+)')
+	street_type_2 = re.compile(r'(.+) Block of (.+)')
 	for data_point in data:
 		try:
 			crime_type_id = crime_type_ids[data_point[1]]
@@ -56,6 +61,35 @@ def vectorize(data, features=['time', 'day', 'month', 'year', 'day_of_week', 'la
 				vec.append(data_point[7])
 			elif feature == 'longitude':
 				vec.append(data_point[8])
+			elif feature == 'streets':
+				type1_match = street_type_1.match(data_point[6])
+				if type1_match is not None:
+					street1, street2 = type1_match.group(1, 2)
+					if street1 not in street_ids:
+						street_ids[street1] = street_counter
+						street_counter += 1
+					if street2 not in street_ids:
+						street_ids[street2] = street_counter
+						street_counter += 1
+					s1_id = street_ids[street1]
+					s2_id = street_ids[street2]
+					vec.append(s1_id)
+					vec.append(s2_id)
+					vec.append(-1)
+				else:
+					type2_match = street_type_2.match(data_point[6])
+					if type2_match is not None:
+						block, street = type2_match.group(1, 2)
+						block = int(block)
+						if street not in street_ids:
+							street_ids[street] = street_counter
+							street_counter += 1
+						s_id = street_ids[street]
+						vec.append(s_id)
+						vec.append(block)
+						vec.append(1)
+					else:
+						raise 'Unknown street format: {0}'.format(data_point[6])
 			else:
 				raise 'Feature not supported!'
 		yield vec
@@ -79,16 +113,22 @@ def to_numpy_array(data):
 	collected_data = [data_point for data_point in data]
 	return np.asarray(collected_data)
 
-def ensure_unit_variance(data):
-	data_scaled = skl.preprocessing.scale(data[:,1:])
-	return np.hstack( [data[:,0].reshape(-1,1), data_scaled] )
+def ensure_unit_variance(data, columns_to_normalize):
+	scaled_data = skl.preprocessing.scale(data)
+	
+	new_data = data.copy()
+	for column in columns_to_normalize:
+		new_data[:,column] = scaled_data[:,column]
+	return new_data
+	
+	# return np.hstack( [data[:,0].reshape(-1,1), data_scaled] )
 
 def write(path, predictions, crime_to_id):
 	# id_to_crime_dict = {value: key for key, value in crime_to_id_dict}
 	first_line = [crime for crime in sorted(crime_to_id, key=crime_to_id.get)]
 	first_line.insert(0, 'Id')
 
-	with open(path, 'wb') as file:
+	with open(path, 'w') as file: # FIXME change 3
 		csv_writer = csv.writer(file, delimiter=',')
 		
 		csv_writer.writerow(first_line)
