@@ -17,10 +17,26 @@ def read(path, limit=None):
 			pd_district = data_point[4]
 			resolution = data_point[5]
 			adress = data_point[6]
-			X = float(data_point[7])
-			Y = float(data_point[8])
-			yield (date, category, descript, day_of_week, pd_district, resolution, adress, X, Y)
-	
+			latitude = float(data_point[7])
+			longitude = float(data_point[8])
+			yield (date, category, descript, day_of_week, pd_district, resolution, adress, latitude, longitude)
+
+def read_unlabled(path, limit=None):
+	with open(path, 'r') as file:
+		descriptions = file.readline().split(',')
+		csv_reader = csv.reader(file)
+		for index, data_point in enumerate(csv_reader):
+			if limit is not None and index >= limit:
+				break
+			
+			date = time.strptime(data_point[1], '%Y-%m-%d %H:%M:%S')
+			day_of_week = data_point[2]
+			pd_district = data_point[3]
+			adress = data_point[4]
+			latitude = float(data_point[5])
+			longitude = float(data_point[6])
+			yield(date, day_of_week, pd_district, adress, latitude, longitude)
+			
 def to_numpy_array(data):
 	collected_data = [data_point for data_point in data]
 	return np.asarray(collected_data)
@@ -38,7 +54,12 @@ def write(path, predictions, crime_to_id):
 			row = probabilities.tolist()
 			row.insert(0, index)
 			csv_writer.writerow( row )
-	
+
+# path = 'data/test.csv'
+# data = read_unlabled(path, limit=10)
+# for d in data:
+	# print(d)
+
 # Show lower and upper limit of raw vs. normalized time of day
 # data = to_numpy_array(vectorize(read('data/train.csv', 10000)))
 # print('Min: {0} Max: {1}'.format(min(data[:,1]), max(data[:,1])))
