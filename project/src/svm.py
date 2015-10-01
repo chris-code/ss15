@@ -4,8 +4,6 @@ from sklearn.svm import SVC
 import sklearn.cross_validation as cv
 
 path = "../data/train.csv"
-#data = im.to_numpy_array(im.preprocess(im.vectorize(im.read(path, 30000))))
-
 data = im.vectorize(im.read(path, 30000), ['latitude', 'longitude', 'time', 'day', 'month', 'year', 'day_of_week'])
 crime_to_id_dict = data.next()
 data = im.to_numpy_array(im.preprocess(data, 1, 2))

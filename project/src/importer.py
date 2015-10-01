@@ -60,7 +60,7 @@ def vectorize(data, features=['time', 'day', 'month', 'year', 'day_of_week', 'la
 				raise 'Feature not supported!'
 		yield vec
 
-def preprocess(data):
+def preprocess(data, lat, long):
 	# define outermost coordinates
 	SOUTH = {'y': 37.696850, 'x': -122.440464}
 	EAST = {'y': 37.764893, 'x': -122.347306} 
@@ -68,10 +68,10 @@ def preprocess(data):
 	WEST = {'y': 37.728356, 'x': -122.535908}
 	
 	for data_point in data:
-		if data_point[2] < WEST['x'] \
-		or data_point[2] > EAST['x'] \
-		or data_point[3] < SOUTH['y'] \
-		or data_point[3] > NORTH['y']:
+		if data_point[lat] < WEST['x'] \
+		or data_point[lat] > EAST['x'] \
+		or data_point[long] < SOUTH['y'] \
+		or data_point[long] > NORTH['y']:
 			continue
 		yield data_point
 	
