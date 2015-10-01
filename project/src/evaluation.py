@@ -1,3 +1,5 @@
+import math
+
 def logloss(predictions, truth):
 	ll = 0.0
 	for i in range(predictions.shape[0]):

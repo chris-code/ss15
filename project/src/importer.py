@@ -1,9 +1,6 @@
 import time
-import re
 import csv
 import numpy as np
-import sklearn as skl
-import sklearn.preprocessing
 
 def read(path, limit=None):
 	with open(path, 'r') as file: # FIXME change 2
@@ -23,105 +20,10 @@ def read(path, limit=None):
 			X = float(data_point[7])
 			Y = float(data_point[8])
 			yield (date, category, descript, day_of_week, pd_district, resolution, adress, X, Y)
-
-def vectorize(data, features=['time', 'day', 'month', 'year', 'day_of_week', 'latitude', 'longitude']):
-	crime_type_ids = {}
-	crime_type_counter = 0
-	street_ids = {}
-	street_counter = 0
-	yield crime_type_ids
-
-	street_type_1 = re.compile(r'(.+) / (.+)')
-	street_type_2 = re.compile(r'(.+) Block of (.+)')
-	for data_point in data:
-		try:
-			crime_type_id = crime_type_ids[data_point[1]]
-		except KeyError:
-			crime_type_ids[data_point[1]] = crime_type_counter
-			crime_type_counter += 1
-			crime_type_id = crime_type_ids[data_point[1]]
-		
-		vec = [crime_type_id]
-		for feature in features:
-			if feature == 'time':
-				time = data_point[0].tm_hour * 60 + data_point[0].tm_min
-				vec.append(time)
-			elif feature == 'day':
-				day = data_point[0].tm_mday
-				vec.append(day)
-			elif feature == 'month':
-				month = data_point[0].tm_mon
-				vec.append(month)
-			elif feature == 'year':
-				year = data_point[0].tm_year
-				vec.append(year)
-			elif feature == 'day_of_week':
-				vec.append(data_point[0].tm_wday)
-			elif feature == 'latitude':
-				vec.append(data_point[7])
-			elif feature == 'longitude':
-				vec.append(data_point[8])
-			elif feature == 'streets':
-				type1_match = street_type_1.match(data_point[6])
-				if type1_match is not None:
-					street1, street2 = type1_match.group(1, 2)
-					if street1 not in street_ids:
-						street_ids[street1] = street_counter
-						street_counter += 1
-					if street2 not in street_ids:
-						street_ids[street2] = street_counter
-						street_counter += 1
-					s1_id = street_ids[street1]
-					s2_id = street_ids[street2]
-					vec.append(s1_id)
-					vec.append(s2_id)
-					vec.append(-1)
-				else:
-					type2_match = street_type_2.match(data_point[6])
-					if type2_match is not None:
-						block, street = type2_match.group(1, 2)
-						block = int(block)
-						if street not in street_ids:
-							street_ids[street] = street_counter
-							street_counter += 1
-						s_id = street_ids[street]
-						vec.append(s_id)
-						vec.append(block)
-						vec.append(1)
-					else:
-						raise 'Unknown street format: {0}'.format(data_point[6])
-			else:
-				raise 'Feature not supported!'
-		yield vec
-
-def preprocess(data, lat, long):
-	# define outermost coordinates
-	SOUTH = {'y': 37.696850, 'x': -122.440464}
-	EAST = {'y': 37.764893, 'x': -122.347306} 
-	NORTH = {'y': 37.839763, 'x': -122.424554}
-	WEST = {'y': 37.728356, 'x': -122.535908}
-	
-	for data_point in data:
-		if data_point[lat] < WEST['x'] \
-		or data_point[lat] > EAST['x'] \
-		or data_point[long] < SOUTH['y'] \
-		or data_point[long] > NORTH['y']:
-			continue
-		yield data_point
 	
 def to_numpy_array(data):
 	collected_data = [data_point for data_point in data]
 	return np.asarray(collected_data)
-
-def ensure_unit_variance(data, columns_to_normalize):
-	scaled_data = skl.preprocessing.scale(data)
-	
-	new_data = data.copy()
-	for column in columns_to_normalize:
-		new_data[:,column] = scaled_data[:,column]
-	return new_data
-	
-	# return np.hstack( [data[:,0].reshape(-1,1), data_scaled] )
 
 def write(path, predictions, crime_to_id):
 	# id_to_crime_dict = {value: key for key, value in crime_to_id_dict}

@@ -4,6 +4,7 @@ import sklearn as skl
 import sklearn.neighbors
 import sklearn.cross_validation as cv
 import importer
+import data_processing as dapo
 import evaluation as eval
 
 def distance_in_mod(a, b, m):
@@ -59,10 +60,10 @@ def predict(knn_c, data):
 train_path = 'data/train.csv'
 predictions_path = 'data/predictions.csv'
 data = importer.read(train_path, 3000)
-data = importer.vectorize(data, features=['latitude', 'longitude', 'day', 'day_of_week', 'time', 'streets'])
+data = dapo.vectorize(data, features=['latitude', 'longitude', 'day', 'day_of_week', 'time', 'streets'])
 crime_to_id_dict = data.next() # FIXME change 1
 data = importer.to_numpy_array(data)
-data = importer.ensure_unit_variance(data, columns_to_normalize=(1, 2, 3, 4, 5))
+data = dapo.ensure_unit_variance(data, columns_to_normalize=(1, 2, 3, 4, 5))
 
 crime_ids = data[:,0].astype(int)
 locations = data[:,1:]
