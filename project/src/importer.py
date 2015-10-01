@@ -2,7 +2,7 @@ import time
 import csv
 import numpy as np
 
-def read_labled(path, limit=None):
+def read_labeled(path, limit=None):
 	'''Generator function that returns a sequence of tuples, each one representing one data point in the .csv file at path.
 	
 	This is intended for reading the training data . Each tuple is of the form
@@ -29,7 +29,7 @@ def read_labled(path, limit=None):
 			longitude = float(data_point[8])
 			yield (date, category, descript, day_of_week, pd_district, resolution, adress, latitude, longitude)
 
-def read_unlabled(path, limit=None):
+def read_unlabeled(path, limit=None):
 	'''Generator function that returns a sequence of tuples, each one representing one data point in the .csv file at path.
 	
 	This is intended for reading the test data. Each tuple is of the form
