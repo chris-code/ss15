@@ -4,6 +4,7 @@ import sklearn as skl
 import sklearn.neighbors
 import sklearn.cross_validation as cv
 import importer
+import evaluation as eval
 
 def distance_in_mod(a, b, m):
 	if a > b:
@@ -54,18 +55,6 @@ def train(neighbor_counts = [1]):
 def predict(knn_c, data):
 	return knn_c.predict_proba(data)
 
-def logloss(predictions, truth):
-	ll = 0.0
-	for i in range(predictions.shape[0]):
-		true_crime_id = truth[i]
-		try:
-			prob = predictions[i, true_crime_id]
-		except IndexError:
-			prob = 0
-		prob = max( min(prob, 1 - 10**(-15)) , 10**(-15))
-		ll += math.log(prob)
-	return (-1.0) * ll / predictions.shape[0]
-
 # Load data
 train_path = 'data/train.csv'
 predictions_path = 'data/predictions.csv'
@@ -90,7 +79,7 @@ neighbor_counts = [43, 83, 123]
 # neighbor_counts = [43]
 knn_c = train(neighbor_counts)
 predictions = predict(knn_c, loc_test)
-ll = logloss(predictions, crime_ids_test)
+ll = eval.logloss(predictions, crime_ids_test)
 print('Log loss: {0}'.format(ll))
 importer.write(predictions_path, predictions, crime_to_id_dict)
 
