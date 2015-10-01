@@ -132,8 +132,10 @@ def write(path, predictions, crime_to_id):
 		csv_writer = csv.writer(file, delimiter=',')
 		
 		csv_writer.writerow(first_line)
-		for row in predictions:
-			csv_writer.writerow(row)
+		for index, probabilities in enumerate(predictions):
+			row = probabilities.tolist()
+			row.insert(0, index)
+			csv_writer.writerow( row )
 	
 # Show lower and upper limit of raw vs. normalized time of day
 # data = to_numpy_array(vectorize(read('data/train.csv', 10000)))

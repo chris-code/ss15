@@ -4,6 +4,7 @@ import sklearn as skl
 import sklearn.neighbors
 import sklearn.cross_validation as cv
 import importer
+import evaluation as eval
 
 def distance_in_mod(a, b, m):
 	if a > b:
@@ -54,24 +55,12 @@ def train(neighbor_counts = [1]):
 def predict(knn_c, data):
 	return knn_c.predict_proba(data)
 
-def logloss(predictions, truth):
-	ll = 0.0
-	for i in range(predictions.shape[0]):
-		true_crime_id = truth[i]
-		try:
-			prob = predictions[i, true_crime_id]
-		except IndexError:
-			prob = 0
-		prob = max( min(prob, 1 - 10**(-15)) , 10**(-15))
-		ll += math.log(prob)
-	return (-1.0) * ll / predictions.shape[0]
-
 # Load data
 train_path = 'data/train.csv'
 predictions_path = 'data/predictions.csv'
 data = importer.read(train_path, 3000)
 data = importer.vectorize(data, features=['latitude', 'longitude', 'day', 'day_of_week', 'time', 'streets'])
-crime_to_id_dict = data.__next__() # FIXME change 1
+crime_to_id_dict = data.next() # FIXME change 1
 data = importer.to_numpy_array(data)
 data = importer.ensure_unit_variance(data, columns_to_normalize=(1, 2, 3, 4, 5))
 
@@ -87,9 +76,10 @@ loc_train, loc_test, crime_ids_train, crime_ids_test = cv.train_test_split(locat
 # Train and evaluate
 # neighbor_counts = [43, 83, 123, 163, 203, 243, 283]
 neighbor_counts = [43, 83, 123]
+# neighbor_counts = [43]
 knn_c = train(neighbor_counts)
 predictions = predict(knn_c, loc_test)
-ll = logloss(predictions, crime_ids_test)
+ll = eval.logloss(predictions, crime_ids_test)
 print('Log loss: {0}'.format(ll))
 importer.write(predictions_path, predictions, crime_to_id_dict)
 
