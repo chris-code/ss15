@@ -22,7 +22,6 @@ class Network:
 		
 	def initialize(self, input_neuron_count, hidden_neuron_count, output_neuron_count):
 		'''Initializes the hidden layer and the output layer with the given number of neurons.'''
-		
 		# initialize layers
 		self.hidden_layer = np.empty((hidden_neuron_count))
 		self.output_layer = np.empty((output_neuron_count))
@@ -33,7 +32,6 @@ class Network:
 	
 	def predict(self, input_layer, get_u = False):
 		'''Predicts the label for a given data point / for given input layer values.'''
-		
 		# calculate input into and output out of hidden layer
 		u1 = np.dot(self.i2h_weights, input_layer)
 		self.hidden_layer[...] = self.sigmoidal(u1)
@@ -48,7 +46,6 @@ class Network:
 	
 	def train(self, eta, label, input_layer):
 		'''Trains the network via backpropagation.'''
-		
 		# predict label of the data point and get input values for the layers
 		prediction, u1, u2 = self.predict(input_layer, True)
 
@@ -65,8 +62,10 @@ class Network:
 		self.i2h_weights[...] -= eta * derivative1
 		
 	def run(self, iterations, data_train, target_train):
-		'''This method runs the network with given training data for the given number of iterations.'''
+		'''Runs the network with given training data for the given number of iterations.'''
 		for iteration in range(iterations):
+			if iteration % 100000 == 0:
+				print iteration
 			self.train(self.calc_eta(iteration), target_train[iteration % data_train.shape[0]],
 				data_train[iteration % data_train.shape[0],:])
 
@@ -79,16 +78,18 @@ class Network:
 				mistakes += 1
 		return float(mistakes) / data.shape[0]
 
+		
 # load data
 path = "../data/train.csv"
-data = dp.vectorize(im.read(path, 30000), ['latitude', 'longitude', 'time', 'day', 'month', 'year', 'day_of_week'])
+data = im.read_labeled(path, 3000)
+data = dp.vectorize(data, 1, features=[('latitude', 7), ('longitude', 8), ('day', 0), ('day_of_week', 0), ('time', 0)])
 crime_to_id_dict = data.next()
-data = im.to_numpy_array(dp.remove_outliers(data, 1, 2))
-data = dp.ensure_unit_variance(data, range(1,8))
+data = im.to_numpy_array(data)
+data = dp.ensure_unit_variance(data, columns_to_normalize=(0,1,2,3,4))
 
 # separate data in features and labels
-Y = data[:,0].astype(int)
-X = data[:,1:]
+Y = data[:,5].astype(int)
+X = data[:,:5]
 
 # split data in training data and test data
 data_train, data_test, target_train, target_test = cv.train_test_split(X, Y, test_size=0.33)
