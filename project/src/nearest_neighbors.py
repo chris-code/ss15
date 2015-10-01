@@ -68,11 +68,11 @@ data = importer.read(train_path, 3000)
 data = dapo.vectorize(data, 1, features=[('latitude', 7), ('longitude', 8), ('day', 0), ('day_of_week', 0), ('time', 0), ('streets', 6)])
 crime_to_id_dict = data.next() # FIXME change 1
 data = importer.to_numpy_array(data)
-data = dapo.ensure_unit_variance(data, columns_to_normalize=(1, 2, 3, 4, 5))
+data = dapo.ensure_unit_variance(data, columns_to_normalize=(0, 1, 2, 3, 4))
 
 # Separate labels from data
-crime_ids = data[:,0].astype(int)
-locations = data[:,1:]
+crime_ids = data[:,-1].astype(int)
+locations = data[:,:-1]
 
 # Calculate ranges for the modulo used on circular quantities
 modulo_for_day = abs( min(locations[:,2]) - max(locations[:,2]) )

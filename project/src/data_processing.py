@@ -21,10 +21,8 @@ def vectorize(data, label_column, features=[('time', 0), ('day', 0), ('month', 0
 				crime_type_ids[data_point[label_column]] = crime_type_counter
 				crime_type_counter += 1
 				crime_type_id = crime_type_ids[data_point[label_column]]
-			
-			vec = [crime_type_id]
-		else:
-			vec = []
+				
+		vec = []
 		for feature, column in features:
 			if feature == 'time':
 				time = data_point[column].tm_hour * 60 + data_point[column].tm_min
@@ -76,6 +74,8 @@ def vectorize(data, label_column, features=[('time', 0), ('day', 0), ('month', 0
 						raise 'Unknown street format: {0}'.format(data_point[6])
 			else:
 				raise 'Feature not supported!'
+		if label_column is not None:
+			vec.append(crime_type_id)
 		yield vec
 
 def remove_outliers(data, lat, long):
