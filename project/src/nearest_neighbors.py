@@ -14,7 +14,7 @@ def distance_in_mod(a, b, m):
 	else:
 		return min( b - a, m - (b - a) )
 
-def distance_function(a, b):
+def distance_function(a, b, modulae):
 	'''Determines and returns the (scalar) distance of two data points.
 	
 	Parameters a and b are expected to be subscriptables containing
@@ -28,15 +28,20 @@ def distance_function(a, b):
 	on different streets, even if the distance is comparable, two points on the same street bet a 'bonus'. Their distance
 	is divided by 2 if they lie on the same street, and by 3 if they share both streets (same crossroad)
 	'''
+	global modulo_for_day, modulo_for_day_of_week, modulo_for_time
+	
+	# Spatial distance
 	dist = abs(a[0] - b[0]) + abs(a[1] - b[1]) # Manhattan distance
 	
 	# Circular quantities
+	if modulae is not None:
+		modulo_for_day, modulo_for_day_of_week, modulo_for_time = modulae
 	dist += distance_in_mod(a[2], b[2], modulo_for_day)
 	dist += distance_in_mod(a[3], b[3], modulo_for_day_of_week)
 	dist += distance_in_mod(a[4], b[4], modulo_for_time)
 	
 	# Bonuses for occurences on the same street
-	divisor = 1
+	divisor = 1.0
 	if a[7] < 0 and b[7] < 0:
 		if abs(a[5] - b[5]) < 0.1: divisor += 1.0
 		if abs(a[5] - b[6]) < 0.1: divisor += 1.0
@@ -55,7 +60,7 @@ def distance_function(a, b):
 	return math.sqrt(dist)
 
 # TODO pass training data?
-def train(neighbor_counts = [1]):
+def train(loc_train, loc_test, crime_ids_train, crime_ids_test, neighbor_counts, modulae):
 	'''Trains multiple NN classifiers and returns the best one and the number of neighbors it uses.
 	
 	For each integer in neighbor_counts, a NN classifier is trained on loc_train, crime_ids_train and evaluated
@@ -63,9 +68,10 @@ def train(neighbor_counts = [1]):
 	classifiers use  distance proportional weights and distance_function to calculate distances. Take not that
 	using a custom distance function is rediculously slow.
 	'''
-	best_score = 0
+	best_score = -1
 	for neighbor_count in neighbor_counts:
-		knn_c = skl.neighbors.KNeighborsClassifier(n_neighbors=neighbor_count, weights='distance', metric='pyfunc', func=distance_function)
+		met_parms = {'modulae': modulae}
+		knn_c = skl.neighbors.KNeighborsClassifier(n_neighbors=neighbor_count, weights='distance', metric='pyfunc', func=distance_function, metric_params=met_parms)
 		# knn_c = skl.neighbors.KNeighborsClassifier(n_neighbors=neighbor_count, weights='distance')
 		knn_c.fit(loc_train, crime_ids_train)
 		score = knn_c.score(loc_test, crime_ids_test)
@@ -113,6 +119,7 @@ if __name__ == '__main__':
 	modulo_for_day = abs( min(locations[:,2]) - max(locations[:,2]) )
 	modulo_for_day_of_week = abs( min(locations[:,3]) - max(locations[:,3]) )
 	modulo_for_time = abs( min(locations[:,4]) - max(locations[:,4]) )
+	modulae = (modulo_for_day, modulo_for_day_of_week, modulo_for_time)
 
 	# Split into train and test set
 	loc_train, loc_test, crime_ids_train, crime_ids_test = cv.train_test_split(locations, crime_ids, test_size=0.33)
@@ -120,7 +127,8 @@ if __name__ == '__main__':
 	# Train and evaluate
 	# neighbor_counts = [43, 83, 123, 163, 203, 243, 283]
 	neighbor_counts = [43, 83, 123, 163]
-	knn_c, neighbor_count = train(neighbor_counts)
+	neighbor_counts = [43]
+	knn_c, neighbor_count = train(loc_train, loc_test, crime_ids_train, crime_ids_test, neighbor_counts, modulae)
 	predictions = predict(knn_c, loc_test)
 	ll = eval.logloss(predictions, crime_ids_test) # Log loss is the measure applied by kaggle
 	print('Log loss: {0}'.format(ll))
@@ -143,9 +151,10 @@ if __name__ == '__main__':
 	modulo_for_day = abs( min( np.hstack([data[:,2], locations[:,2]]) ) - max( np.hstack([data[:,2], locations[:,2]]) ) )
 	modulo_for_day_of_week = abs( min( np.hstack([data[:,3], locations[:,3]]) ) - max( np.hstack([data[:,3], locations[:,3]]) ) )
 	modulo_for_time = abs( min( np.hstack([data[:,4], locations[:,4]]) ) - max( np.hstack([data[:,4], locations[:,4]]) ) )
+	modulae = (modulo_for_day, modulo_for_day_of_week, modulo_for_time)
 
 	# Train NN classifier on complete training data (with the best number of neighbors) and use it to predict crime types of the test set.
-	knn_c = skl.neighbors.KNeighborsClassifier(n_neighbors=neighbor_count, weights='distance', metric='pyfunc', func=distance_function)
+	knn_c = skl.neighbors.KNeighborsClassifier(n_neighbors=neighbor_count, weights='distance', metric='pyfunc', func=distance_function, metric_params={'modulae': modulae})
 	knn_c.fit(locations, crime_ids)
 	predictions = predict(knn_c, data)
 	importer.write(predictions_path, predictions, crime_to_id_dict) # Write predicted data to disk in format specified by kaggle
