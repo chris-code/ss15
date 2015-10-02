@@ -39,7 +39,7 @@ def plot_crimes(crimes, title):
 	plt.show()
 	
 path = "../data/train.csv"
-data = im.read_labeled(path,1000)
+data = im.read_labeled(path)
 data = dp.vectorize(data, 1, features=[('latitude', 7), ('longitude', 8)])
 crime_to_id_dict = data.next()
 data = im.to_numpy_array(data)
