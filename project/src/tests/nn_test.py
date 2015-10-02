@@ -48,7 +48,7 @@ class NetworkTests(unittest.TestCase):
 		self.N.h2o_weights = np.array(range(30)).reshape(3,10) / 100.
 		self.N.train(self.N.calc_eta(30), 1, np.array([3,5,7,11,13]))
 		
-		for path in ["tests/data/train_test_i2h.csv", "tests/data/train_test_h2o.csv"]:
+		for path in ["src/tests/data/train_test_i2h.csv", "src/tests/data/train_test_h2o.csv"]:
 			with open(path, 'r') as file:
 				csv_reader = csv.reader(file)
 				data_list = []
@@ -58,7 +58,7 @@ class NetworkTests(unittest.TestCase):
 			
 			for i,row in enumerate(desired_weights):
 				for j,element in enumerate(row):
-					if path == "tests/data/train_test_i2h.csv":
+					if path == "src/tests/data/train_test_i2h.csv":
 						self.assertAlmostEqual(float(element), self.N.i2h_weights[i,j])
 					else:
 						self.assertAlmostEqual(float(element), self.N.h2o_weights[i,j])

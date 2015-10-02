@@ -127,7 +127,6 @@ if __name__ == '__main__':
 	# Train and evaluate
 	# neighbor_counts = [43, 83, 123, 163, 203, 243, 283]
 	neighbor_counts = [43, 83, 123, 163]
-	neighbor_counts = [43]
 	knn_c, neighbor_count = train(loc_train, loc_test, crime_ids_train, crime_ids_test, neighbor_counts, modulae)
 	predictions = predict(knn_c, loc_test)
 	ll = eval.logloss(predictions, crime_ids_test) # Log loss is the measure applied by kaggle

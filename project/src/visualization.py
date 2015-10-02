@@ -38,7 +38,7 @@ def plot_crimes(crimes, title):
 	
 	plt.show()
 
-if __name__ = '__main__':
+if __name__ == '__main__':
 	path = "../data/train.csv"
 	data = im.read_labeled(path)
 	data = dp.vectorize(data, 1, features=[('latitude', 7), ('longitude', 8)])
