@@ -14,7 +14,7 @@ import csv
 
 class NetworkTests(unittest.TestCase):
 	def setUp(self):
-		self.N = nn.Network()	
+		self.N = nn.Network()
 
 	def test_calc_eta(self):
 		self.assertAlmostEqual(self.N.calc_eta(30), 0.00998503366585)
