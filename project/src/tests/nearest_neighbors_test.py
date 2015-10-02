@@ -8,6 +8,8 @@ sys.path.append(parent_folder)
 import unittest
 import csv
 import numpy as np
+import sklearn as skl
+import sklearn.neighbors
 import nearest_neighbors
 
 class Test_Distance_In_Mod(unittest.TestCase):
@@ -79,24 +81,42 @@ class Test_Distance_Function(unittest.TestCase):
 			self.assertAlmostEqual(calculated_distance, true_distance)
 
 class Test_train(unittest.TestCase):
-	# def test_valid(self):
-		# Generate zero mean, unit variance data
-		# loc_train = np.random.normal(0, 1, size=(100, 8)) # 100 samples, and the required number of features for distance function
-		# loc_test = np.random.normal(0, 1, size=(100, 8))
-		# crime_ids_train = np.random.random_integers(0, 38, size=(100)) 
-		# crime_ids_test = np.random.random_integers(0, 38, size=(100))
-		# neighbor_counts = [1]
+	def setUp(self):
+		self.locations = np.random.normal(0, 1, size=(100, 8)) # 100 samples, and the required number of features for distance function
+		self.crime_ids = np.random.random_integers(0, 38, size=(100))
 		
-		# nearest_neighbors.train(loc_train, loc_test, crime_ids_train, crime_ids_test, neighbor_counts)
-	def test_umatched_size(self):
-		loc_train = np.random.normal(0, 1, size=(100, 8)) # 100 samples, and the required number of features for distance function
-		loc_test = np.random.normal(0, 1, size=(100, 8))
-		crime_ids_train = np.random.random_integers(0, 38, size=(50)) # Only 50 samples
-		crime_ids_test = np.random.random_integers(0, 38, size=(100))
+		# Calculate ranges for the modulo used on circular quantities
+		modulo_for_day = abs( min(self.locations[:,2]) - max(self.locations[:,2]) )
+		modulo_for_day_of_week = abs( min(self.locations[:,3]) - max(self.locations[:,3]) )
+		modulo_for_time = abs( min(self.locations[:,4]) - max(self.locations[:,4]) )
+		self.modulae = (modulo_for_day, modulo_for_day_of_week, modulo_for_time)
+	
+	def test_valid(self):
+		loc_train, loc_test = np.vsplit(self.locations, 2)
+		crime_ids_train, crime_ids_test = np.split(self.crime_ids, 2)
+		neighbor_counts = [1]
+		
+		knn_c, neighbor_count = nearest_neighbors.train(loc_train, loc_test, crime_ids_train, crime_ids_test, neighbor_counts, self.modulae)
+		self.assertIsInstance(knn_c, skl.neighbors.KNeighborsClassifier)
+		self.assertGreater(neighbor_count, 0)
+	
+	def test_unmatched_train_size(self):
+		loc_train, loc_test = np.vsplit(self.locations, 2)
+		crime_ids_train, crime_ids_test = np.split(self.crime_ids, 2)
+		crime_ids_train = crime_ids_train[:-1] # One label is missing
 		neighbor_counts = [1]
 		
 		f = nearest_neighbors.train
-		self.assertRaises(ValueError, f, loc_train, loc_test, crime_ids_train, crime_ids_test, neighbor_counts)
+		self.assertRaises(ValueError, f, loc_train, loc_test, crime_ids_train, crime_ids_test, neighbor_counts, self.modulae)
+	
+	def test_unmatched_test_size(self):
+		loc_train, loc_test = np.vsplit(self.locations, 2)
+		crime_ids_train, crime_ids_test = np.split(self.crime_ids, 2)
+		crime_ids_test = crime_ids_test[:-1] # One label is missing
+		neighbor_counts = [1]
+		
+		f = nearest_neighbors.train
+		self.assertRaises(ValueError, f, loc_train, loc_test, crime_ids_train, crime_ids_test, neighbor_counts, self.modulae)
 
 if __name__ == '__main__':
 	unittest.main()
