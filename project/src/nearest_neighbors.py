@@ -14,8 +14,6 @@ def distance_in_mod(a, b, m):
 	else:
 		return min( b - a, m - (b - a) )
 
-# Expects a and b to be of the format
-# (latitude, longitude, day_of_month, day_of_week, time_of_day, street_data_1, street_data_1, street_flag)
 def distance_function(a, b):
 	'''Determines and returns the (scalar) distance of two data points.
 	
