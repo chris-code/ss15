@@ -37,15 +37,16 @@ def plot_crimes(crimes, title):
 	plt.imshow(img,zorder=0,extent=[-122.535908, -122.347306, 37.696850, 37.839763])
 	
 	plt.show()
-	
-path = "../data/train.csv"
-data = im.read_labeled(path)
-data = dp.vectorize(data, 1, features=[('latitude', 7), ('longitude', 8)])
-crime_to_id_dict = data.next()
-data = im.to_numpy_array(data)
-id_to_crime_dict = {value: key for key, value in crime_to_id_dict.items()}
-crime_lists = create_crime_lists(data, id_to_crime_dict)
 
-for cl in crime_lists:
-	arr = np.asarray(crime_lists[cl])
-	plot_crimes(arr,cl)
+if __name__ = '__main__':
+	path = "../data/train.csv"
+	data = im.read_labeled(path)
+	data = dp.vectorize(data, 1, features=[('latitude', 7), ('longitude', 8)])
+	crime_to_id_dict = data.next()
+	data = im.to_numpy_array(data)
+	id_to_crime_dict = {value: key for key, value in crime_to_id_dict.items()}
+	crime_lists = create_crime_lists(data, id_to_crime_dict)
+
+	for cl in crime_lists:
+		arr = np.asarray(crime_lists[cl])
+		plot_crimes(arr,cl)
