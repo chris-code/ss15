@@ -100,14 +100,14 @@ if __name__ == '__main__':
 	# For each tested classifier, the score is calculated and printed. Additionally, the log loss as applied
 	# by kaggle is calculated and printed for the best classifier.
 
-	train_path = 'data/train.csv'
-	predictions_path = 'data/predictions.csv'
+	train_path = '../data/train.csv'
+	predictions_path = '../data/predictions.csv'
 
 	# Load training data
-	data = importer.read_labeled(train_path, 3000) # Read at most 3000 data points
+	data = importer.read_labeled(train_path, 1000) # Read at most 3000 data points
 
 	data = dapo.vectorize(data, 1, features=[('latitude', 7), ('longitude', 8), ('day', 0), ('day_of_week', 0), ('time', 0), ('streets', 6)])
-	crime_to_id_dict = data.next()
+	crime_to_id_dict = data.__next__()
 	data = importer.to_numpy_array(data) # Collect data in array
 	data = dapo.ensure_unit_variance(data, columns_to_normalize=(0, 1, 2, 3, 4)) # Ensure unit variance in appropriate columns
 
@@ -136,8 +136,8 @@ if __name__ == '__main__':
 	# In this phase, a new NN classifier is trained on the original (complete) data set, with the optimal number of neighbors as determined
 	# during the training phase. That is then used to predict the crime types on the orignal test set, the result of which is written to disk.
 
-	test_path = 'data/test.csv'
-	predictions_path = 'data/predictions.csv'
+	test_path = '../data/test.csv'
+	predictions_path = '../data/predictions.csv'
 
 	# Load data to predict
 	data = importer.read_unlabeled(test_path, 1000) # Read at most 1000 data points to predict crimes on
