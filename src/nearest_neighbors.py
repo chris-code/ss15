@@ -69,7 +69,7 @@ def distance_function(a, b, modulae, weights=(1.0, 1.0, 1.0, 1.0)):
 	
 	return math.sqrt(dist)
 
-def grid_search(data, labels, modulae, neighbor_counts):
+def grid_search(data, labels, modulae, neighbor_counts, location_weights, day_weights, day_of_week_weights, time_weights):
 	'''Trains multiple NN classifiers and returns the best one and the number of neighbors it uses.
 	
 	For each integer in neighbor_counts, a NN classifier is trained on loc_train, crime_ids_train and evaluated
@@ -82,18 +82,23 @@ def grid_search(data, labels, modulae, neighbor_counts):
 	
 	best_log_loss = 10**10
 	for nc in neighbor_counts:
-		met_parms = {'modulae': modulae}
-		#~ knn_c = skl.neighbors.KNeighborsClassifier(n_neighbors=nc, weights='distance', metric='pyfunc', func=distance_function, metric_params=met_parms)
-		#~ knn_c = skl.neighbors.KNeighborsClassifier(n_neighbors=nc, metric='pyfunc', func=distance_function, metric_params=met_parms)
-		knn_c = nnc.Nearest_Neighbor_Classifier(n_neighbors=nc, metric=distance_function, metric_params=met_parms)
-		knn_c.fit(loc_train, crime_ids_train)
-		predictions = knn_c.predict_proba(loc_test)
-		log_loss = ev.logloss(predictions, crime_ids_test)
-		
-		print('Neighbors: {0}, log loss: {1}'.format(nc, log_loss))
-		if log_loss < best_log_loss:
-			best_log_loss = log_loss
-			best_neighbor_count = nc
+		for lw in location_weights:
+			for dw in day_weights:
+				for doww in day_of_week_weights:
+					for tw in time_weights:
+						weights = (lw, dw, doww, tw)
+						met_parms = {'modulae': modulae, 'weights': weights}
+						#~ knn_c = skl.neighbors.KNeighborsClassifier(n_neighbors=nc, weights='distance', metric='pyfunc', func=distance_function, metric_params=met_parms)
+						#~ knn_c = skl.neighbors.KNeighborsClassifier(n_neighbors=nc, metric='pyfunc', func=distance_function, metric_params=met_parms)
+						knn_c = nnc.Nearest_Neighbor_Classifier(n_neighbors=nc, metric=distance_function, metric_params=met_parms)
+						knn_c.fit(loc_train, crime_ids_train)
+						predictions = knn_c.predict_proba(loc_test)
+						log_loss = ev.logloss(predictions, crime_ids_test)
+						
+						print('Neighbors: {0}, log loss: {1}'.format(nc, log_loss))
+						if log_loss < best_log_loss:
+							best_log_loss = log_loss
+							best_neighbor_count = nc
 		
 	return best_neighbor_count
 
@@ -130,7 +135,12 @@ if __name__ == '__main__':
 	train_path = '../data/train.csv'
 	data_train, labels, modulae, crime_to_id = read_training_data(train_path, data_limit=1000)
 	neighbor_counts = [43]
-	neighbor_count = grid_search(data_train, labels, modulae, neighbor_counts)
+	location_weights = np.linspace(0.1, 10, num=5)
+	day_weights = np.linspace(0.1, 10, num=5)
+	day_of_week_weights = np.linspace(0.1, 10, num=5)
+	time_weights = np.linspace(0.1, 10, num=5)
+	location_weights, day_weights, day_of_week_weights, time_weights = [1], [1], [1], [1]
+	neighbor_count = grid_search(data_train, labels, modulae, neighbor_counts, location_weights, day_weights, day_of_week_weights, time_weights)
 
 	#~ # Train knn with those parameters
 	#~ test_path = '../data/test.csv'
