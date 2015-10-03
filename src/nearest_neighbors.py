@@ -5,7 +5,8 @@ import sklearn.neighbors
 import sklearn.cross_validation as cv
 import importer
 import data_processing as dapo
-import evaluation as eval
+import evaluation as ev
+import nearest_neighbors_c as nnc
 
 def calc_mod_ranges(data, columns=None):
 	if columns is None:
@@ -24,7 +25,7 @@ def distance_in_mod(a, b, m):
 	else:
 		return min( b - a, m - (b - a) )
 
-def distance_function(a, b, modulae):
+def distance_function(a, b, modulae, weights=(1.0, 1.0, 1.0, 1.0)):
 	'''Determines and returns the (scalar) distance of two data points.
 	
 	Parameters a and b are expected to be subscriptables containing
@@ -38,17 +39,16 @@ def distance_function(a, b, modulae):
 	on different streets, even if the distance is comparable, two points on the same street bet a 'bonus'. Their distance
 	is divided by 2 if they lie on the same street, and by 3 if they share both streets (same crossroad)
 	'''
-	global modulo_for_day, modulo_for_day_of_week, modulo_for_time
+	location_weight, day_weight, day_of_week_weight, time_weight = weights
 	
 	# Spatial distance
-	dist = abs(a[0] - b[0]) + abs(a[1] - b[1]) # Manhattan distance
+	dist = location_weight * abs(a[0] - b[0]) + abs(a[1] - b[1]) # Manhattan distance
 	
 	# Circular quantities
-	if modulae is not None:
-		modulo_for_day, modulo_for_day_of_week, modulo_for_time = modulae
-	dist += distance_in_mod(a[2], b[2], modulo_for_day)
-	dist += distance_in_mod(a[3], b[3], modulo_for_day_of_week)
-	dist += distance_in_mod(a[4], b[4], modulo_for_time)
+	modulo_for_day, modulo_for_day_of_week, modulo_for_time = modulae
+	dist += day_weight * distance_in_mod(a[2], b[2], modulo_for_day)
+	dist += day_of_week_weight * distance_in_mod(a[3], b[3], modulo_for_day_of_week)
+	dist += time_weight * distance_in_mod(a[4], b[4], modulo_for_time)
 	
 	# Bonuses for occurences on the same street
 	divisor = 1.0
@@ -69,7 +69,7 @@ def distance_function(a, b, modulae):
 	
 	return math.sqrt(dist)
 
-def train(loc_train, loc_test, crime_ids_train, crime_ids_test, neighbor_counts, modulae):
+def grid_search(data, labels, modulae, neighbor_counts):
 	'''Trains multiple NN classifiers and returns the best one and the number of neighbors it uses.
 	
 	For each integer in neighbor_counts, a NN classifier is trained on loc_train, crime_ids_train and evaluated
@@ -77,89 +77,71 @@ def train(loc_train, loc_test, crime_ids_train, crime_ids_test, neighbor_counts,
 	classifiers use  distance proportional weights and distance_function to calculate distances. Take not that
 	using a custom distance function is rediculously slow.
 	'''
-	best_score = -1
-	for neighbor_count in neighbor_counts:
-		met_parms = {'modulae': modulae}
-		knn_c = skl.neighbors.KNeighborsClassifier(n_neighbors=neighbor_count, weights='distance', metric='pyfunc', func=distance_function, metric_params=met_parms)
-		knn_c.fit(loc_train, crime_ids_train)
-		score = knn_c.score(loc_test, crime_ids_test)
-		print('Score with {0} neighbors: {1}'.format(neighbor_count, score))
-		
-		if score > best_score:
-			best_score = score
-			best_knn_c = knn_c
-			best_neighbor_count = neighbor_count
-		
-	return best_knn_c, best_neighbor_count
-
-def predict(knn_c, data):
-	'''Uses knn_c to predict and return the class probabilities for all entries in data
+	# Split into train and test set
+	loc_train, loc_test, crime_ids_train, crime_ids_test = cv.train_test_split(data, labels, test_size=0.33)
 	
-	knn_c should be a (trained) sklearn.KNeighborsClassifier, and data a numpy array of shape
-	(#samples, dimensionalty_of_data). It will return a numpy array of shape (#samples, #crime types),
-	which for each sample, indicates the estimated proabilities of of the various learned crime types.
-	'''
-	return knn_c.predict_proba(data)
+	best_log_loss = 10**10
+	for nc in neighbor_counts:
+		met_parms = {'modulae': modulae}
+		#~ knn_c = skl.neighbors.KNeighborsClassifier(n_neighbors=nc, weights='distance', metric='pyfunc', func=distance_function, metric_params=met_parms)
+		#~ knn_c = skl.neighbors.KNeighborsClassifier(n_neighbors=nc, metric='pyfunc', func=distance_function, metric_params=met_parms)
+		knn_c = nnc.Nearest_Neighbor_Classifier(n_neighbors=nc, metric=distance_function, metric_params=met_parms)
+		knn_c.fit(loc_train, crime_ids_train)
+		predictions = knn_c.predict_proba(loc_test)
+		log_loss = ev.logloss(predictions, crime_ids_test)
+		
+		print('Neighbors: {0}, log loss: {1}'.format(nc, log_loss))
+		if log_loss < best_log_loss:
+			best_log_loss = log_loss
+			best_neighbor_count = nc
+		
+	return best_neighbor_count
 
-if __name__ == '__main__':
-	########## Training phase ##########
-	# In this phase the original (labeled) training data is split into a new set of training and test data.
-	# These sets are used to determine the optimal parameters (number of neighbors) for a NN classifier.
-	# For each tested classifier, the score is calculated and printed. Additionally, the log loss as applied
-	# by kaggle is calculated and printed for the best classifier.
-
-	train_path = '../data/train.csv'
-	predictions_path = '../data/predictions.csv'
-
+def read_training_data(data_path, data_limit):
 	# Load training data
-	data = importer.read_labeled(train_path, 1000) # Read at most 3000 data points
+	data_train = importer.read_labeled(data_path, data_limit) # Read at most 3000 data points
 	features=[('latitude', 7), ('longitude', 8), ('day', 0), ('day_of_week', 0), ('time', 0), ('streets', 6)]
-	crime_to_id_dict, data = dapo.vectorize(data, label_column=1, features=features)
-	data = importer.to_numpy_array(data) # Collect data in array
-	data = dapo.ensure_unit_variance(data, columns_to_normalize=(0, 1, 2, 3, 4)) # Ensure unit variance in appropriate columns
-
-	# Separate labels from data
-	crime_ids = data[:,-1].astype(int) # Crime ids are in the last column, and are integer values
-	locations = data[:,:-1] # The rest is data
+	crime_to_id, labels, data_train = dapo.vectorize(data_train, label_column=1, features=features)
+	data_train = importer.to_numpy_array(data_train) # Collect data in array
+	labels = importer.to_numpy_array(labels).astype(int)
+	data_train = dapo.ensure_unit_variance(data_train, columns_to_normalize=(0, 1, 2, 3, 4)) # Ensure unit variance in appropriate columns
 
 	# Calculate ranges for the modulo used on circular quantities
-	modulae = calc_mod_ranges(locations, (2, 3, 4))
+	modulae = calc_mod_ranges(data_train, (2, 3, 4))
 
-	# Split into train and test set
-	loc_train, loc_test, crime_ids_train, crime_ids_test = cv.train_test_split(locations, crime_ids, test_size=0.33)
+	return data_train, labels, modulae, crime_to_id
 
-	# Train and evaluate
-	# neighbor_counts = [43, 83, 123, 163, 203, 243, 283]
-	#~ neighbor_counts = [43, 83, 123, 163]
-	neighbor_counts = [43]
-	knn_c, neighbor_count = train(loc_train, loc_test, crime_ids_train, crime_ids_test, neighbor_counts, modulae)
-	predictions = predict(knn_c, loc_test)
-	ll = eval.logloss(predictions, crime_ids_test) # Log loss is the measure applied by kaggle
-	print('Log loss: {0}'.format(ll))
-
-	########## Prediction phase #########
-	# In this phase, a new NN classifier is trained on the original (complete) data set, with the optimal number of neighbors as determined
-	# during the training phase. That is then used to predict the crime types on the orignal test set, the result of which is written to disk.
-
-	test_path = '../data/test.csv'
-	predictions_path = '../data/predictions.csv'
-
+def read_test_data(data_path, data_limit, data_train):
 	# Load data to predict
-	data = importer.read_unlabeled(test_path, 1000) # Read at most 1000 data points to predict crimes on
+	data_test = importer.read_unlabeled(test_path, data_limit) # Read at most 1000 data points to predict crimes on
 	features = [('latitude', 4), ('longitude', 5), ('day', 0), ('day_of_week', 0), ('time', 0), ('streets', 3)]
-	data = dapo.vectorize(data, label_column=None, features=features)
-	data = importer.to_numpy_array(data) # Collect data in numpy array
-	data = dapo.ensure_unit_variance(data, columns_to_normalize=(0, 1, 2, 3, 4)) # Ensure unit variance in appropriate columns
+	data_test = dapo.vectorize(data_test, label_column=None, features=features)
+	data_test = importer.to_numpy_array(data_test) # Collect data in numpy array
+	data_test = dapo.ensure_unit_variance(data_test, columns_to_normalize=(0, 1, 2, 3, 4)) # Ensure unit variance in appropriate columns
 
 	# Calculate new modulo ranges for circular quantities (see above). In calculating these ranges, we have to include the data used in training,
 	# since the NN classifier calculates distances between the points to be predicted and points used in training.
-	modulae = calc_mod_ranges(np.vstack( [data, locations] ), (2, 3, 4))
+	modulae = calc_mod_ranges(np.vstack( [data_test, data_train] ), (2, 3, 4))
+	
+	return data_test, modulae
 
-	# Train NN classifier on complete training data (with the best number of neighbors) and use it to predict crime types of the test set.
-	knn_c = skl.neighbors.KNeighborsClassifier(n_neighbors=neighbor_count, weights='distance', metric='pyfunc', func=distance_function, metric_params={'modulae': modulae})
-	knn_c.fit(locations, crime_ids)
-	predictions = predict(knn_c, data)
-	importer.write(predictions_path, predictions, crime_to_id_dict) # Write predicted data to disk in format specified by kaggle
+if __name__ == '__main__':
+	# Optimize parameters
+	train_path = '../data/train.csv'
+	data_train, labels, modulae, crime_to_id = read_training_data(train_path, data_limit=1000)
+	neighbor_counts = [43]
+	neighbor_count = grid_search(data_train, labels, modulae, neighbor_counts)
+
+	#~ # Train knn with those parameters
+	#~ test_path = '../data/test.csv'
+	#~ data_test, modulae = read_test_data(test_path, data_limit=1000, data_train=data_train)
+	#~ knn_c = skl.neighbors.KNeighborsClassifier(n_neighbors=neighbor_count, weights='distance', metric='pyfunc', func=distance_function, metric_params={'modulae': modulae})
+	#~ knn_c.fit(data_train, labels)
+	#~ 
+	#~ # Use it to predict on data
+	#~ predictions_path = '../data/predictions.csv'
+	#~ predictions = knn_c.predict_proba(data_test)
+	#~ importer.write(predictions_path, predictions, crime_to_id)
 
 
 
