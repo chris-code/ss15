@@ -7,6 +7,16 @@ import importer
 import data_processing as dapo
 import evaluation as eval
 
+def calc_mod_ranges(data, columns=None):
+	if columns is None:
+		columns = range(data.shape[1])
+	
+	ranges = []
+	for c in columns:
+		value = abs( min(data[:,c]) - max(data[:,c]) )
+		ranges.append(value)
+	return ranges
+
 def distance_in_mod(a, b, m):
 	'''Calculates and returns the distance of two values of a circular quantity.'''
 	if a > b:
@@ -59,7 +69,6 @@ def distance_function(a, b, modulae):
 	
 	return math.sqrt(dist)
 
-# TODO pass training data?
 def train(loc_train, loc_test, crime_ids_train, crime_ids_test, neighbor_counts, modulae):
 	'''Trains multiple NN classifiers and returns the best one and the number of neighbors it uses.
 	
@@ -72,7 +81,6 @@ def train(loc_train, loc_test, crime_ids_train, crime_ids_test, neighbor_counts,
 	for neighbor_count in neighbor_counts:
 		met_parms = {'modulae': modulae}
 		knn_c = skl.neighbors.KNeighborsClassifier(n_neighbors=neighbor_count, weights='distance', metric='pyfunc', func=distance_function, metric_params=met_parms)
-		# knn_c = skl.neighbors.KNeighborsClassifier(n_neighbors=neighbor_count, weights='distance')
 		knn_c.fit(loc_train, crime_ids_train)
 		score = knn_c.score(loc_test, crime_ids_test)
 		print('Score with {0} neighbors: {1}'.format(neighbor_count, score))
@@ -105,9 +113,8 @@ if __name__ == '__main__':
 
 	# Load training data
 	data = importer.read_labeled(train_path, 1000) # Read at most 3000 data points
-
-	data = dapo.vectorize(data, 1, features=[('latitude', 7), ('longitude', 8), ('day', 0), ('day_of_week', 0), ('time', 0), ('streets', 6)])
-	crime_to_id_dict = data.__next__()
+	features=[('latitude', 7), ('longitude', 8), ('day', 0), ('day_of_week', 0), ('time', 0), ('streets', 6)]
+	crime_to_id_dict, data = dapo.vectorize(data, label_column=1, features=features)
 	data = importer.to_numpy_array(data) # Collect data in array
 	data = dapo.ensure_unit_variance(data, columns_to_normalize=(0, 1, 2, 3, 4)) # Ensure unit variance in appropriate columns
 
@@ -116,17 +123,15 @@ if __name__ == '__main__':
 	locations = data[:,:-1] # The rest is data
 
 	# Calculate ranges for the modulo used on circular quantities
-	modulo_for_day = abs( min(locations[:,2]) - max(locations[:,2]) )
-	modulo_for_day_of_week = abs( min(locations[:,3]) - max(locations[:,3]) )
-	modulo_for_time = abs( min(locations[:,4]) - max(locations[:,4]) )
-	modulae = (modulo_for_day, modulo_for_day_of_week, modulo_for_time)
+	modulae = calc_mod_ranges(locations, (2, 3, 4))
 
 	# Split into train and test set
 	loc_train, loc_test, crime_ids_train, crime_ids_test = cv.train_test_split(locations, crime_ids, test_size=0.33)
 
 	# Train and evaluate
 	# neighbor_counts = [43, 83, 123, 163, 203, 243, 283]
-	neighbor_counts = [43, 83, 123, 163]
+	#~ neighbor_counts = [43, 83, 123, 163]
+	neighbor_counts = [43]
 	knn_c, neighbor_count = train(loc_train, loc_test, crime_ids_train, crime_ids_test, neighbor_counts, modulae)
 	predictions = predict(knn_c, loc_test)
 	ll = eval.logloss(predictions, crime_ids_test) # Log loss is the measure applied by kaggle
@@ -141,16 +146,14 @@ if __name__ == '__main__':
 
 	# Load data to predict
 	data = importer.read_unlabeled(test_path, 1000) # Read at most 1000 data points to predict crimes on
-	data = dapo.vectorize(data, None, features=[('latitude', 4), ('longitude', 5), ('day', 0), ('day_of_week', 0), ('time', 0), ('streets', 3)])
+	features = [('latitude', 4), ('longitude', 5), ('day', 0), ('day_of_week', 0), ('time', 0), ('streets', 3)]
+	data = dapo.vectorize(data, label_column=None, features=features)
 	data = importer.to_numpy_array(data) # Collect data in numpy array
 	data = dapo.ensure_unit_variance(data, columns_to_normalize=(0, 1, 2, 3, 4)) # Ensure unit variance in appropriate columns
 
 	# Calculate new modulo ranges for circular quantities (see above). In calculating these ranges, we have to include the data used in training,
 	# since the NN classifier calculates distances between the points to be predicted and points used in training.
-	modulo_for_day = abs( min( np.hstack([data[:,2], locations[:,2]]) ) - max( np.hstack([data[:,2], locations[:,2]]) ) )
-	modulo_for_day_of_week = abs( min( np.hstack([data[:,3], locations[:,3]]) ) - max( np.hstack([data[:,3], locations[:,3]]) ) )
-	modulo_for_time = abs( min( np.hstack([data[:,4], locations[:,4]]) ) - max( np.hstack([data[:,4], locations[:,4]]) ) )
-	modulae = (modulo_for_day, modulo_for_day_of_week, modulo_for_time)
+	modulae = calc_mod_ranges(np.vstack( [data, locations] ), (2, 3, 4))
 
 	# Train NN classifier on complete training data (with the best number of neighbors) and use it to predict crime types of the test set.
 	knn_c = skl.neighbors.KNeighborsClassifier(n_neighbors=neighbor_count, weights='distance', metric='pyfunc', func=distance_function, metric_params={'modulae': modulae})

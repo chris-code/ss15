@@ -2,7 +2,7 @@ import re
 import sklearn as skl
 import sklearn.preprocessing
 
-def vectorize(data, label_column, features=[('time', 0), ('day', 0), ('month', 0), ('year', 0), ('day_of_week', 0), ('latitude', 7), ('longitude', 8)]):
+def vectorize(data, label_column, features):
 	'''Generator function that extracts and returns a selectible set of features for each data point in the data parameter.
 	
 	Returns a vector containing values for the selected features. The order in the features parameter is indicative of the order in
@@ -44,9 +44,10 @@ def vectorize(data, label_column, features=[('time', 0), ('day', 0), ('month', 0
 	street_counter = 0 # Counts how many unique street names have been found.
 	
 	# Provide caller with the dictionary if appropriate.
-	if label_column is not None:
-		yield crime_type_ids
+	#~ if label_column is not None:
+		#~ yield crime_type_ids
 
+	vectorized_data = []
 	for data_point in data:
 		# Get crime id from dictionary, or make new one if neccessary.
 		if label_column is not None:
@@ -114,7 +115,12 @@ def vectorize(data, label_column, features=[('time', 0), ('day', 0), ('month', 0
 		if label_column is not None:
 			vec.append(crime_type_id)
 		
-		yield vec
+		#~ yield vec
+		vectorized_data.append(vec)
+	if label_column is not None:
+		return crime_type_ids, vectorized_data
+	else:
+		return vectorized_data
 
 def remove_outliers(data, lat_index, long_index):
 	'''Generator function that yields every item in the sequence data, if it is within the specified coordinates.'''
