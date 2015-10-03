@@ -48,16 +48,8 @@ def vectorize(data, label_column, features):
 		#~ yield crime_type_ids
 
 	vectorized_data = []
+	vectorized_labels = []
 	for data_point in data:
-		# Get crime id from dictionary, or make new one if neccessary.
-		if label_column is not None:
-			try:
-				crime_type_id = crime_type_ids[data_point[label_column]]
-			except KeyError:
-				crime_type_ids[data_point[label_column]] = crime_type_counter
-				crime_type_counter += 1
-				crime_type_id = crime_type_ids[data_point[label_column]]
-		
 		# Create vector and append all requested features
 		vec = []
 		for feature, column in features:
@@ -110,15 +102,20 @@ def vectorize(data, label_column, features):
 						raise 'Unknown street format: {0}'.format(data_point[6])
 			else: # Caller has requested an unknown feature
 				raise 'Feature not supported!'
-		
-		# If data is labeld, append vectorized data as last element
-		if label_column is not None:
-			vec.append(crime_type_id)
-		
-		#~ yield vec
 		vectorized_data.append(vec)
+		
+		# Get crime id from dictionary, or make new one if neccessary.
+		if label_column is not None:
+			try:
+				crime_type_id = crime_type_ids[data_point[label_column]]
+			except KeyError:
+				crime_type_ids[data_point[label_column]] = crime_type_counter
+				crime_type_counter += 1
+				crime_type_id = crime_type_ids[data_point[label_column]]
+			vectorized_labels.append(crime_type_id)
+		
 	if label_column is not None:
-		return crime_type_ids, vectorized_data
+		return crime_type_ids, vectorized_labels, vectorized_data
 	else:
 		return vectorized_data
 
