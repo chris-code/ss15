@@ -88,8 +88,7 @@ def grid_search(data, labels, modulae, neighbor_counts, weight_lists):
 			for dw in day_weights:
 				for doww in day_of_week_weights:
 					for tw in time_weights:
-						weights = (lw, dw, doww, tw)
-						met_parms = {'modulae': modulae, 'weights': weights}
+						met_parms = {'modulae': modulae, 'weights': (lw, dw, doww, tw)}
 						#~ knn_c = skl.neighbors.KNeighborsClassifier(n_neighbors=nc, weights='distance', metric='pyfunc', func=distance_function, metric_params=met_parms)
 						#~ knn_c = skl.neighbors.KNeighborsClassifier(n_neighbors=nc, metric='pyfunc', func=distance_function, metric_params=met_parms)
 						knn_c = nnc.Nearest_Neighbor_Classifier(n_neighbors=nc, metric=distance_function, metric_params=met_parms)
@@ -100,9 +99,25 @@ def grid_search(data, labels, modulae, neighbor_counts, weight_lists):
 						if log_loss < best_log_loss:
 							best_log_loss = log_loss
 							best_neighbor_count = nc
-							best_weights = lw, dw, doww, tw
+							best_weights = (lw, dw, doww, tw)
 		
 	return best_log_loss, best_neighbor_count, best_weights
+
+def grid_search_controller(data, labels, modulae, neighbor_range, weight_ranges, cycles):
+	for c in range(cycles):
+		neighbor_list = [int(neighbor_range[0] + neighbor_range[1]) / 2.0]
+		weight_lists = [ [(lower+upper)/2.0] for lower, upper in weight_ranges ]
+		
+		idx = c % len(weight_ranges)
+		lower, upper = weight_ranges[idx]
+		weight_lists[idx] = np.linspace(lower, upper, num=5)
+		
+		_, best_neighbor_count, best_weights = grid_search(data, labels, modulae, neighbor_list, weight_lists)
+		weight_ranges[idx] = (best_weights[idx] / 2.0, best_weights[idx] * 2.0)
+	
+	n = int(neighbor_range[0] + neighbor_range[1]) / 2.0
+	w = [ (lower+upper)/2.0 for lower, upper in weight_ranges ]
+	return n, w
 
 def read_training_data(data_path, data_limit):
 	# Load training data
@@ -137,10 +152,10 @@ if __name__ == '__main__':
 	train_path = '../data/train.csv'
 	data_train, labels, modulae, crime_to_id = read_training_data(train_path, data_limit=1000)
 	neighbor_counts = [163]
-	location_weights, day_weights, day_of_week_weights, time_weights = [0.0325], [0.055], [0.0775], [1.0]
-	weight_lists = location_weights, day_weights, day_of_week_weights, time_weights
-	log_loss, neighbor_count, weights = grid_search(data_train, labels, modulae, neighbor_counts, weight_lists)
-	print('Best log loss of {0} achieved with'.format(log_loss))
+	neighbor_range = (20, 200)
+	weight_ranges = [(0.1, 10), (0.1, 10), (0.1, 10), (0.1, 10)]
+	neighbor_count, weights = grid_search_controller(data_train, labels, modulae, neighbor_range, weight_ranges, 4)
+	#~ print('Best log loss of {0} achieved with'.format(log_loss))
 	print('{0} neighbors and weights {1}'.format(neighbor_count, weights))
 
 	#~ # Train knn with those parameters
