@@ -1,3 +1,4 @@
+import math
 import numpy as np
 
 def _default_metric(a, b):
@@ -5,7 +6,7 @@ def _default_metric(a, b):
 
 class Nearest_Neighbor_Classifier:
 	
-	def __init__(self, n_neighbors, metric=_default_metric, metric_params=None):
+	def __init__(self, n_neighbors, metric=_default_metric, metric_params={}):
 		self.n_neighbors = n_neighbors
 		#~ self.metric = metric
 		#~ self.metric_params = metric_params

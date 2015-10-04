@@ -1,7 +1,7 @@
 import math
 import numpy as np
-import sklearn as skl
-import sklearn.neighbors
+#~ import sklearn as skl
+#~ import sklearn.neighbors
 import sklearn.cross_validation as cv
 import importer
 import data_processing as dapo
@@ -69,7 +69,7 @@ def distance_function(a, b, modulae, weights=(1.0, 1.0, 1.0, 1.0)):
 	
 	return math.sqrt(dist)
 
-def grid_search(data, labels, modulae, neighbor_counts, location_weights, day_weights, day_of_week_weights, time_weights):
+def grid_search(data, labels, modulae, neighbor_counts, weight_lists):
 	'''Trains multiple NN classifiers and returns the best one and the number of neighbors it uses.
 	
 	For each integer in neighbor_counts, a NN classifier is trained on loc_train, crime_ids_train and evaluated
@@ -77,6 +77,8 @@ def grid_search(data, labels, modulae, neighbor_counts, location_weights, day_we
 	classifiers use  distance proportional weights and distance_function to calculate distances. Take not that
 	using a custom distance function is rediculously slow.
 	'''
+	location_weights, day_weights, day_of_week_weights, time_weights = weight_lists
+	
 	# Split into train and test set
 	loc_train, loc_test, crime_ids_train, crime_ids_test = cv.train_test_split(data, labels, test_size=0.33)
 	
@@ -95,12 +97,12 @@ def grid_search(data, labels, modulae, neighbor_counts, location_weights, day_we
 						predictions = knn_c.predict_proba(loc_test)
 						log_loss = ev.logloss(predictions, crime_ids_test)
 						
-						print('Neighbors: {0}, log loss: {1}'.format(nc, log_loss))
 						if log_loss < best_log_loss:
 							best_log_loss = log_loss
 							best_neighbor_count = nc
+							best_weights = lw, dw, doww, tw
 		
-	return best_neighbor_count
+	return best_log_loss, best_neighbor_count, best_weights
 
 def read_training_data(data_path, data_limit):
 	# Load training data
@@ -134,13 +136,12 @@ if __name__ == '__main__':
 	# Optimize parameters
 	train_path = '../data/train.csv'
 	data_train, labels, modulae, crime_to_id = read_training_data(train_path, data_limit=1000)
-	neighbor_counts = [43]
-	location_weights = np.linspace(0.1, 10, num=5)
-	day_weights = np.linspace(0.1, 10, num=5)
-	day_of_week_weights = np.linspace(0.1, 10, num=5)
-	time_weights = np.linspace(0.1, 10, num=5)
-	location_weights, day_weights, day_of_week_weights, time_weights = [1], [1], [1], [1]
-	neighbor_count = grid_search(data_train, labels, modulae, neighbor_counts, location_weights, day_weights, day_of_week_weights, time_weights)
+	neighbor_counts = [163]
+	location_weights, day_weights, day_of_week_weights, time_weights = [0.0325], [0.055], [0.0775], [1.0]
+	weight_lists = location_weights, day_weights, day_of_week_weights, time_weights
+	log_loss, neighbor_count, weights = grid_search(data_train, labels, modulae, neighbor_counts, weight_lists)
+	print('Best log loss of {0} achieved with'.format(log_loss))
+	print('{0} neighbors and weights {1}'.format(neighbor_count, weights))
 
 	#~ # Train knn with those parameters
 	#~ test_path = '../data/test.csv'
