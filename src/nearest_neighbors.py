@@ -69,55 +69,60 @@ def distance_function(a, b, modulae, weights=(1.0, 1.0, 1.0, 1.0)):
 	
 	return math.sqrt(dist)
 
-def grid_search(data, labels, modulae, neighbor_counts, weight_lists):
-	'''Trains multiple NN classifiers and returns the best one and the number of neighbors it uses.
-	
-	For each integer in neighbor_counts, a NN classifier is trained on loc_train, crime_ids_train and evaluated
-	on loc_test, crime_ids_test. The one with the best accuracy is returned along with its neighbor count. The
-	classifiers use  distance proportional weights and distance_function to calculate distances. Take not that
-	using a custom distance function is rediculously slow.
-	'''
-	location_weights, day_weights, day_of_week_weights, time_weights = weight_lists
-	
-	# Split into train and test set
-	loc_train, loc_test, crime_ids_train, crime_ids_test = cv.train_test_split(data, labels, test_size=0.33)
-	
-	best_log_loss = 10**10
-	for nc in neighbor_counts:
-		for lw in location_weights:
-			for dw in day_weights:
-				for doww in day_of_week_weights:
-					for tw in time_weights:
-						met_parms = {'modulae': modulae, 'weights': (lw, dw, doww, tw)}
-						#~ knn_c = skl.neighbors.KNeighborsClassifier(n_neighbors=nc, weights='distance', metric='pyfunc', func=distance_function, metric_params=met_parms)
-						#~ knn_c = skl.neighbors.KNeighborsClassifier(n_neighbors=nc, metric='pyfunc', func=distance_function, metric_params=met_parms)
-						knn_c = nnc.Nearest_Neighbor_Classifier(n_neighbors=nc, metric=distance_function, metric_params=met_parms)
-						knn_c.fit(loc_train, crime_ids_train)
-						predictions = knn_c.predict_proba(loc_test)
-						log_loss = ev.logloss(predictions, crime_ids_test)
-						
-						if log_loss < best_log_loss:
-							best_log_loss = log_loss
-							best_neighbor_count = nc
-							best_weights = (lw, dw, doww, tw)
-		
-	return best_log_loss, best_neighbor_count, best_weights
+def evaluate_params(data, labels, modulae, params):
+	data_train, data_test, labels_train, labels_test = cv.train_test_split(data, labels, test_size=0.33)
+			
+	n_neighbors, weights = params[0], params[1:]
+	met_params = {'modulae': modulae, 'weights': weights}
+	knn_c = nnc.Nearest_Neighbor_Classifier(n_neighbors=n_neighbors, metric=distance_function, metric_params=met_params)
+	knn_c.fit(data_train, labels_train)
+	predictions = knn_c.predict_proba(data_test)
+	return ev.logloss(predictions, labels_test)
 
-def grid_search_controller(data, labels, modulae, neighbor_range, weight_ranges, cycles):
+def grid_search(data, labels, modulae, grid, fixed_params = []):
+	if len(grid) > 1:
+		grid_tail = grid[1:]
+		best_log_loss = 2**30
+		
+		for param in grid[0]:
+			more_fixed_params = fixed_params + [param]
+			log_loss, params = grid_search(data, labels, modulae, grid_tail, more_fixed_params)
+			
+			if log_loss < best_log_loss:
+				best_log_loss = log_loss
+				best_params = params
+		
+		return best_log_loss, best_params
+	else:
+		best_log_loss = 2**30
+		
+		for param in grid[0]:
+			all_params = fixed_params + [param]
+			log_loss = evaluate_params(data, labels, modulae, all_params)
+			
+			if log_loss < best_log_loss:
+				best_log_loss = log_loss
+				best_params = all_params
+		
+		return best_log_loss, best_params
+
+def grid_search_controller(data, labels, modulae, parameter_ranges, cycles):
 	for c in range(cycles):
-		neighbor_list = [int(neighbor_range[0] + neighbor_range[1]) / 2.0]
-		weight_lists = [ [(lower+upper)/2.0] for lower, upper in weight_ranges ]
+		print('\tGrid search cycle {0} out of {1}...'.format(c + 1, cycles))
+		param_idx = c % len(parameter_ranges)
 		
-		idx = c % len(weight_ranges)
-		lower, upper = weight_ranges[idx]
-		weight_lists[idx] = np.linspace(lower, upper, num=5)
+		grid = [ [(lower + upper) / 2.0] for lower, upper in parameter_ranges ]
+		lower, upper = parameter_ranges[param_idx]
+		grid[param_idx] = np.linspace(lower, upper, num=5)
 		
-		_, best_neighbor_count, best_weights = grid_search(data, labels, modulae, neighbor_list, weight_lists)
-		weight_ranges[idx] = (best_weights[idx] / 2.0, best_weights[idx] * 2.0)
+		best_log_loss, best_parameters = grid_search(data, labels, modulae, grid)
+		
+		new_lower, new_upper = best_parameters[param_idx] / 2.0, best_parameters[param_idx] * 2.0
+		new_lower = max(new_lower, parameter_ranges[param_idx][0])
+		new_upper = min(new_upper, parameter_ranges[param_idx][1])
+		parameter_ranges[param_idx] = (new_lower, new_upper)
 	
-	n = int(neighbor_range[0] + neighbor_range[1]) / 2.0
-	w = [ (lower+upper)/2.0 for lower, upper in weight_ranges ]
-	return n, w
+	return best_log_loss, [(lower + upper) / 2.0 for lower, upper in parameter_ranges]
 
 def read_training_data(data_path, data_limit):
 	# Load training data
@@ -150,24 +155,33 @@ def read_test_data(data_path, data_limit, data_train):
 if __name__ == '__main__':
 	# Optimize parameters
 	train_path = '../data/train.csv'
-	data_train, labels, modulae, crime_to_id = read_training_data(train_path, data_limit=1000)
-	neighbor_counts = [163]
-	neighbor_range = (20, 200)
-	weight_ranges = [(0.1, 10), (0.1, 10), (0.1, 10), (0.1, 10)]
-	neighbor_count, weights = grid_search_controller(data_train, labels, modulae, neighbor_range, weight_ranges, 4)
-	#~ print('Best log loss of {0} achieved with'.format(log_loss))
-	print('{0} neighbors and weights {1}'.format(neighbor_count, weights))
+	data_train, labels, modulae, crime_to_id = read_training_data(train_path, data_limit=3000)
+	parameter_ranges = [(20, 200), (0.1, 10), (0.1, 10), (0.1, 10), (0.1, 10)]
+	
+	print('Searching for optimal parameters...')
+	log_loss, parameters = grid_search_controller(data_train, labels, modulae, parameter_ranges, len(parameter_ranges) * 5)
+	neighbor_count, weights = parameters[0], parameters[1:]
+	print('Best log loss of {0:.4f} achieved with'.format(log_loss))
+	print('\t{0} neighbors and weights {1}'.format(int(round(neighbor_count)), ['{0:.2f}'.format(w) for w in weights]))
 
-	#~ # Train knn with those parameters
-	#~ test_path = '../data/test.csv'
-	#~ data_test, modulae = read_test_data(test_path, data_limit=1000, data_train=data_train)
-	#~ knn_c = skl.neighbors.KNeighborsClassifier(n_neighbors=neighbor_count, weights='distance', metric='pyfunc', func=distance_function, metric_params={'modulae': modulae})
-	#~ knn_c.fit(data_train, labels)
-	#~ 
-	#~ # Use it to predict on data
-	#~ predictions_path = '../data/predictions.csv'
-	#~ predictions = knn_c.predict_proba(data_test)
-	#~ importer.write(predictions_path, predictions, crime_to_id)
+	# Train knn with those parameters
+	test_path = '../data/test.csv'
+	data_test, modulae = read_test_data(test_path, data_limit=1000, data_train=data_train)
+	met_params = {'modulae': modulae, 'weights': weights}
+	
+	print('Training NN classifier with those parameters...')
+	knn_c = nnc.Nearest_Neighbor_Classifier(n_neighbors=neighbor_count, metric=distance_function, metric_params=met_params)
+	knn_c.fit(data_train, labels)
+	
+	# Use it to predict on data
+	predictions_path = '../data/predictions.csv'
+	
+	print('Using that classifier to predict on unseen data...')
+	predictions = knn_c.predict_proba(data_test)
+	importer.write(predictions_path, predictions, crime_to_id)
+	
+	print('Done. Results written to')
+	print('\t{0}'.format(predictions_path))
 
 
 
